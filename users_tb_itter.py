@@ -1,5 +1,3 @@
-import telebot
-from telebot import types
 from mysql.connector import connect, Error
 
 API_TOKEN = '5254469397:AAE_DNDM81MOVbFMc_sHB_4EH_qqUbXbIko'
@@ -10,6 +8,8 @@ connection = connect(
     user="root",
     password="Password",
     database="coffee_bot")
+
+
 # )
 
 
@@ -32,11 +32,13 @@ def check_existence(name):
     try:
         cursor = connection.cursor()
         query = f"""
-            SELECT EXISTS(SELECT * FROM users 
-                          WHERE username = {name})
+            SELECT EXISTS(SELECT * FROM users
+                          WHERE username = '{name}')
         """
         cursor.execute(query)
-        return cursor.fetchall()
+        res = cursor.fetchall()
+        # print(res)
+        return res[0][0]
     except Error as e:
         print(e)
 
@@ -49,11 +51,31 @@ def update_user(name, feature, new_value):
             SET {feature} = '{new_value}'
             WHERE username = '{name}'
             """
-
         cursor.execute(sql)
         connection.commit()
     except Error as e:
         print(e)
+
+def is_user_info_filled(name):
+    try:
+        cursor = connection.cursor()
+        sql = f"""
+                SELECT *
+                FROM users
+                WHERE username = '{name}' 
+                AND age > ''
+                AND gender > '' 
+                AND hobbies > '' 
+                AND self_description > '' 
+                AND conv_topics > '' 
+                AND is_active = 1
+                """
+        cursor.execute(sql)
+        user_info = cursor.fetchall()
+        return True if user_info else False
+    except Error as e:
+        print(e)
+
 
 def get_user_feature_val(name, feature):
     try:
@@ -64,23 +86,23 @@ def get_user_feature_val(name, feature):
         WHERE username = '{name}'
         """
         cursor.execute(sql)
-        return cursor.fetchall()
-
+        res = cursor.fetchall()
+        print(res)
+        return res[0][0]
     except Error as e:
         print(e)
 
-
-def show_users():
-    cursor = connection.cursor()
-    show_table = "SELECT * FROM users"
-    cursor.execute(show_table)
-    for row in cursor.fetchall():
-        print(row)
+# def show_users():
+#     cursor = connection.cursor()
+#     show_table = "SELECT * FROM users"
+#     cursor.execute(show_table)
+#     for row in cursor.fetchall():
+#         print(row)
 # bot = telebot.TeleBot(API_TOKEN)
 # insert_user(username="aca", conv_topics=("123, 1234"))
-# update_user("Alex", "gender", "female")
-
-# print(*(get_user_feature_val("aca", "conv_topics")))
+# print(is_user_info_filled("Alex"))
+# update_user("slashenaya_nechist","conv_topics", "123")
+# print(is_user_info_filled("slashenaya_nechist"))
 #
 # show_users()
 # def send_welcome(message):

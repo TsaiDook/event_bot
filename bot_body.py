@@ -1,9 +1,8 @@
 import telebot
 from telebot import types  # для указание типов
 import config
-from hello_aboba import insert_user, check_existence, update_user, get_user_feature_val
+from users_tb_itter import insert_user, check_existence, update_user, get_user_feature_val, is_user_info_filled
 
-# не знаю, насколько круто считывать данные сразу, но кажется логичным
 bot = telebot.TeleBot(config.token)
 
 
@@ -15,6 +14,8 @@ def start(message):
     bot.send_message(message.chat.id,
                      text=f"Привет, {message.from_user.username}! {config.intro_text}",
                      reply_markup=markup)
+    if not check_existence(message.from_user.username):
+        insert_user(username=message.from_user.username)
 
 
 def get_gender(message):
@@ -45,13 +46,15 @@ def update_data(call):
     if call.message:
         info = call.data
         if info in config.genders:
-            print(f'Gender: {info}')
-            update_user(call.message.from_user.username, "gender", info)
-        if info in config.ages:
-            print(f'Age-group: {info}')
-            update_user(call.message.from_user.username, "age", info)
+            update_user(call.message.chat.username, "gender", info)
+            bot.send_message(call.message.chat.id, text=f"""Гендер изменен на "{info}" """)
+            get_age(call.message)
+        elif info in config.ages:
+            update_user(call.message.chat.username, "age", info)
+            bot.send_message(call.message.chat.id, text=f"""Возраст изменен на "{info}" """)
         else:
-            update_user(call.message.from_user.username, "self_description", info)
+            update_user(call.message.chat.username, "self_description", info)
+            bot.send_message(call.message.chat.id, text=f"""Описание изменено на на "{info}" """)
 
 
 @bot.message_handler(content_types=['text'])
@@ -68,20 +71,15 @@ def communicate(message):
             bot.send_message(message.chat.id, "Сначала необходимо ввести информацию о себе!")
 
     elif message.text == 'Рассказать о себе':
-        if check_existence(message.from_user.username):
+        if is_user_info_filled(message.from_user.username):
             bot.send_message(message.chat.id, "Хотите изменить данные о себе?")
         else:
             bot.send_message(message.chat.id, "Давай начнем!")
-            if not check_existence(message.from_user.username):
-                insert_user(username=message.from_user.username)
             # начинаем получать данные о юзере
-            # в фукнциях мы меняем users_data, а затем пересохраняем ее в .csv (все-таки Pandas не создан для такого)
             get_gender(message)
-            user_gender = get_user_feature_val(message.from_user.username, "gender")
-            print(user_gender)
-            if user_gender:
-                print('Идем дальше!')
-                get_age(message)
+        if message.text in config.genders:
+            print('Идем дальше!')
+            get_age(message)
 
 
     elif message.text == "Вернуться в главное меню":
