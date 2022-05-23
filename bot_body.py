@@ -1,7 +1,7 @@
 import telebot
 from telebot import types  # для указание типов
 import config
-from users_tb_itter import insert_user, check_existence, update_user, get_user_feature_val, is_user_info_filled
+from users_tb_iter import insert_user, check_existence, update_user_tb, get_user_tb_column_val, is_user_info_filled
 
 bot = telebot.TeleBot(config.token)
 
@@ -46,14 +46,14 @@ def update_data(call):
     if call.message:
         info = call.data
         if info in config.genders:
-            update_user(call.message.chat.username, "gender", info)
+            update_user_tb(call.message.chat.username, "gender", info)
             bot.send_message(call.message.chat.id, text=f"""Гендер изменен на "{info}" """)
             get_age(call.message)
         elif info in config.ages:
-            update_user(call.message.chat.username, "age", info)
+            update_user_tb(call.message.chat.username, "age", info)
             bot.send_message(call.message.chat.id, text=f"""Возраст изменен на "{info}" """)
         else:
-            update_user(call.message.chat.username, "self_description", info)
+            update_user_tb(call.message.chat.username, "self_description", info)
             bot.send_message(call.message.chat.id, text=f"""Описание изменено на на "{info}" """)
 
 
