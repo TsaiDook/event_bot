@@ -12,16 +12,40 @@ connection = connect(
 
 # )
 
-
-def insert_user(age=None, gender=None, username=None, hobbies=None, self_description=None, conv_topics=None,
-                is_active=True):
+def get_user_feature_val(name, feature):
     try:
         cursor = connection.cursor()
         sql = f"""
-        INSERT INTO users (age, gender, username, hobbies, self_description, conv_topics, is_active)
-         VALUES (%s, %s, %s,%s,%s,%s,%s)"""
-        val = (age, gender, username, hobbies, self_description, conv_topics, is_active)
-        cursor.execute(sql, val)
+        SELECT {feature}
+        FROM users
+        WHERE username = '{name}'
+        """
+        cursor.execute(sql)
+        res = cursor.fetchall()
+        return res[0][0]
+    except Error as e:
+        print(e)
+
+
+def insert_user(age=None, gender=None, username=None, self_description=None,
+                is_active=True):
+    try:
+        cursor = connection.cursor()
+        add_user = f"""
+        INSERT INTO users (age, gender, username, self_description, is_active)
+         VALUES (%s, %s, %s,%s,%s)"""
+        val = (age, gender, username, self_description, is_active)
+        cursor.execute(add_user, val)
+        connection.commit()
+
+        cursor = connection.cursor()
+        user_id = get_user_feature_val(username, "id")
+        add_user_hobbies = f"""
+        INSERT INTO user_hobbies (user_id, `Настольные игры`, Учеба, Искусство, Наука, `Домашние животные`, Бизнес,
+         Саморазвитие, Спорт, `Компьютерные игры`)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+        val = (user_id, False, False, False, False, False, False, False, False, False)
+        cursor.execute(add_user_hobbies, val)
         connection.commit()
 
     except Error as e:
@@ -37,7 +61,6 @@ def check_existence(name):
         """
         cursor.execute(query)
         res = cursor.fetchall()
-        # print(res)
         return res[0][0]
     except Error as e:
         print(e)
@@ -47,7 +70,7 @@ def update_user(name, feature, new_value):
     try:
         cursor = connection.cursor()
         sql = f"""
-            UPDATE users 
+            UPDATE users
             SET {feature} = '{new_value}'
             WHERE username = '{name}'
             """
@@ -55,6 +78,7 @@ def update_user(name, feature, new_value):
         connection.commit()
     except Error as e:
         print(e)
+
 
 def is_user_info_filled(name):
     try:
@@ -65,9 +89,7 @@ def is_user_info_filled(name):
                 WHERE username = '{name}' 
                 AND age > ''
                 AND gender > '' 
-                AND hobbies > '' 
                 AND self_description > '' 
-                AND conv_topics > '' 
                 AND is_active = 1
                 """
         cursor.execute(sql)
@@ -77,27 +99,22 @@ def is_user_info_filled(name):
         print(e)
 
 
-def get_user_feature_val(name, feature):
+def show_users():
     try:
         cursor = connection.cursor()
-        sql = f"""
-        SELECT {feature}
-        FROM users
-        WHERE username = '{name}'
-        """
-        cursor.execute(sql)
-        res = cursor.fetchall()
-        print(res)
-        return res[0][0]
+        create_table = f"""CREATE TABLE users(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        age VARCHAR(7),
+        gender VARCHAR(7),
+        username VARCHAR(32),
+        self_description TEXT,
+        is_active BOOl)"""
+        cursor.execute(create_table)
     except Error as e:
         print(e)
+    # for row in cursor.fetchall():
+    #     print(row)
 
-# def show_users():
-#     cursor = connection.cursor()
-#     show_table = "SELECT * FROM users"
-#     cursor.execute(show_table)
-#     for row in cursor.fetchall():
-#         print(row)
 # bot = telebot.TeleBot(API_TOKEN)
 # insert_user(username="aca", conv_topics=("123, 1234"))
 # print(is_user_info_filled("Alex"))
