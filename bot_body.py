@@ -1,7 +1,7 @@
 import telebot
 from telebot import types  # для указание типов
 import config
-from users_tb_iter import insert_user, check_existence, update_user_tb, get_user_tb_column_val, is_user_info_filled
+from users_tb_iter import insert_user, check_existence, update_user_tb, get_user_tb_column_val, is_not_empty_match_info
 
 bot = telebot.TeleBot(config.token)
 
@@ -71,7 +71,7 @@ def communicate(message):
             bot.send_message(message.chat.id, "Сначала необходимо ввести информацию о себе!")
 
     elif message.text == 'Рассказать о себе':
-        if is_user_info_filled(message.from_user.username):
+        if is_not_empty_match_info(message.from_user.username):
             bot.send_message(message.chat.id, "Хотите изменить данные о себе?")
         else:
             bot.send_message(message.chat.id, "Давай начнем!")

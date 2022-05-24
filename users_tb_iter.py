@@ -13,7 +13,6 @@ connection = connect(
 
 def insert_user(age=None, gender=None, username=None, self_description="Пусто",
                 is_active=True):
-    user_id = get_user_tb_column_val(username, "id")
     try:
         cursor = connection.cursor()
         add_user = f"""
@@ -23,6 +22,7 @@ def insert_user(age=None, gender=None, username=None, self_description="Пуст
         cursor.execute(add_user, val)
         connection.commit()
 
+        user_id = get_user_tb_column_val(username, "id")
         add_user_hobbies_row(user_id)
         add_user_topics_row(user_id)
     except Error as e:
@@ -161,24 +161,32 @@ def check_existence(username):
     except Error as e:
         print(e)
 
-
-def is_user_info_filled(name):
+#еще додумать, хочу что-то изящное, пока не пришло в вголову
+def is_not_empty_match_info(username):
     try:
         cursor = connection.cursor()
         sql = f"""
                 SELECT *
                 FROM users
-                WHERE username = '{name}' 
+                WHERE username = '{username}' 
                 AND age > ''
                 AND gender > '' 
                 AND is_active = 1
                 """
         cursor.execute(sql)
         user_info = cursor.fetchall()
-        return True if user_info else False
+        is_almost_one_hobbie = False
+        is_almost_one_topic = False
+        for i in get_user_topics(username):
+            if i: is_almost_one_hobbie = True
+        for i in get_user_hobbies(username):
+            if i: is_almost_one_topic = True
+        return True if (user_info and is_almost_one_hobbie and is_almost_one_topic) else False
     except Error as e:
         print(e)
 
+
+# update_user_hobbies_tb("slashenaya_nechist", "Учеба")
 # def show_users():
 #     try:
 #         cursor = connection.cursor()
