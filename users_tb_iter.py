@@ -8,6 +8,8 @@ connection = connect(
     user="root",
     password="Password",
     database="coffee_bot")
+
+
 # )
 
 
@@ -79,11 +81,11 @@ def get_user_hobbies(username):
         sql = f"""
                 SELECT *
                 FROM user_hobbies
-                WHERE id = '{user_id}'
+                WHERE user_id = '{user_id}'
                 """
         cursor.execute(sql)
         res = cursor.fetchall()
-        return res[0]
+        return res[0][2:]
     except Error as e:
         print(e)
 
@@ -95,11 +97,11 @@ def get_user_topics(username):
         sql = f"""
                 SELECT *
                 FROM user_topics
-                WHERE id = '{user_id}'
+                WHERE user_id = '{user_id}'
                 """
         cursor.execute(sql)
         res = cursor.fetchall()
-        return res[0]
+        return res[0][2:]
     except Error as e:
         print(e)
 
@@ -161,7 +163,8 @@ def check_existence(username):
     except Error as e:
         print(e)
 
-#еще додумать, хочу что-то изящное, пока не пришло в вголову
+
+# еще додумать, хочу что-то изящное, пока не пришло в вголову
 def is_not_empty_match_info(username):
     try:
         cursor = connection.cursor()
@@ -175,13 +178,17 @@ def is_not_empty_match_info(username):
                 """
         cursor.execute(sql)
         user_info = cursor.fetchall()
-        is_almost_one_hobbie = False
+        is_almost_one_hobby = False
         is_almost_one_topic = False
         for i in get_user_topics(username):
-            if i: is_almost_one_hobbie = True
+            if i:
+                is_almost_one_hobby = True
+                break
         for i in get_user_hobbies(username):
-            if i: is_almost_one_topic = True
-        return True if (user_info and is_almost_one_hobbie and is_almost_one_topic) else False
+            if i:
+                is_almost_one_topic = True
+                break
+        return True if (user_info and is_almost_one_hobby and is_almost_one_topic) else False
     except Error as e:
         print(e)
 
@@ -209,7 +216,7 @@ def is_not_empty_match_info(username):
 #         print(e)
 # for row in cursor.fetchall():
 #     print(row)
-
+print(is_not_empty_match_info("slashenaya_nechist"))
 # bot = telebot.TeleBot(API_TOKEN)
 # insert_user(username="aca", conv_topics=("123, 1234"))
 # print(is_user_info_filled("Alex"))
