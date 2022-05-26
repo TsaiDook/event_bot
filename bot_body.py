@@ -1,12 +1,9 @@
 import telebot
 from telebot import types  # для указание типов
 import config
-import pandas as pd
+from users_tb_itter import insert_user, check_existence, update_user, get_user_feature_val, is_user_info_filled
 
-# не знаю, насколько круто считывать данные сразу, но кажется логичным
 bot = telebot.TeleBot(config.token)
-users_data = pd.read_csv('users.csv', index_col=0)
-events_data = pd.read_csv('events.csv', index_col=0)
 
 
 @bot.message_handler(commands=['start'])
@@ -17,16 +14,8 @@ def start(message):
     bot.send_message(message.chat.id,
                      text=f"Привет, {message.from_user.username}! {config.intro_text}",
                      reply_markup=markup)
-
-
-# для добавления юзера
-def add_user(message):
-    global users_data
-    username = message.from_user.username
-    append_df = pd.DataFrame([[None, None, username, None, None, None, True]],
-                             columns=list(users_data))
-    users_data = users_data.append(append_df)
-    users_data.to_csv('users.csv')
+    if not check_existence(message.from_user.username):
+        insert_user(username=message.from_user.username, user_id=message.chat.id)
 
 
 def get_gender(message):
@@ -51,26 +40,55 @@ def get_age(message):
                      reply_markup=keyboard)
 
 
-# возможно, я тут написал глупость
+def get_hobbies(message):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    buttons = [types.InlineKeyboardButton(text=hobby,
+                                          callback_data=hobby)
+               for hobby in config.common_hobbies]
+
+    keyboard.add(*buttons)
+    bot.send_message(message.chat.id,
+                     'Великолепно! Расскажи нам о своих интересах. Можешь выбрать от 1 до 9 вариантов:',
+                     reply_markup=keyboard)
+
+
+def get_conv_topics(message):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    buttons = [types.InlineKeyboardButton(text=topic,
+                                          callback_data=topic)
+               for topic in config.common_conv_topics]
+
+    keyboard.add(*buttons)
+    bot.send_message(message.chat.id,
+                     'И последнее: о чем предпочитаешь говорить? (укажи хотя бы 1 пункт 😄)',
+                     reply_markup=keyboard)
+
+
+# CODE DOUBLING!!
 @bot.callback_query_handler(func=lambda call: True)
 def update_data(call):
     if call.message:
         info = call.data
-        # frame не обновляется, но в остальном работает валидно
         if info in config.genders:
-            print(f'Gender: {info}')
-            users_data.loc[users_data.username == call.message.from_user.username].gender = info
-        if info in config.common_hobbies:
-            users_data.loc[users_data.username == call.message.from_user.username, 'hobbies'] = info
-        if info in config.common_conv_topics:
-            users_data.loc[users_data.username == call.message.from_user.username, 'conv_topics'] = info
-        if info in config.ages:
-            print(f'Age-group: {info}')
-            users_data.loc[users_data.username == call.message.from_user.username, 'age'] = info
-        else:
-            users_data.loc[users_data.username == call.message.from_user.username, 'about_me'] = info
-
-        users_data.to_csv('users.csv')
+            update_user(call.message, "gender", info)
+            bot.send_message(call.message.chat.id, text=f'Гендер изменен на "{info}"')
+            get_age(call.message)
+        elif info in config.ages:
+            update_user(call.message, "age", info)
+            bot.send_message(call.message.chat.id, text=f'Возраст изменен на "{info}"')
+            get_hobbies(call.message)
+        elif info in config.common_hobbies and info != 'DONE':
+            update_user(call.message, info)
+            bot.send_message(call.message.chat.id, text=f'Добавил хобби "{info}"')
+        elif info == 'DONE':
+            bot.send_message(call.message.chat.id, text='Хобби добавлены! Идем к разговорам!')
+            get_conv_topics(call.message)
+        elif info in config.common_conv_topics and info != 'FINISH':
+            update_user(call.message, info)
+            bot.send_message(call.message.chat.id, text=f'Добавил тему "{info}"')
+        elif info == 'FINISH':
+            bot.send_message(call.message.chat.id,
+                             text='Отлично! Чтобы люди лучше понимали, что ты за фрукт, немного опиши себя в свободной форме:')
 
 
 @bot.message_handler(content_types=['text'])
@@ -81,25 +99,21 @@ def communicate(message):
         bot.send_message(message.chat.id, text="Опиши событие, которое хочешь создать!")
 
     elif message.text == "Найти похожих юзеров":
-        if message.from_user.username in users_data.username:
+        if check_existence(message.from_user.username):
             bot.send_message(message.chat.id, "Ща как сделаю мэтч!")
         else:
             bot.send_message(message.chat.id, "Сначала необходимо ввести информацию о себе!")
 
     elif message.text == 'Рассказать о себе':
-        if message.from_user.username in users_data.username:
+        if is_user_info_filled(message.from_user.username):
             bot.send_message(message.chat.id, "Хотите изменить данные о себе?")
         else:
             bot.send_message(message.chat.id, "Давай начнем!")
-            if message.from_user.username not in users_data.username.values:
-                add_user(message)
             # начинаем получать данные о юзере
-            # в фукнциях мы меняем users_data, а затем пересохраняем ее в .csv (все-таки Pandas не создан для такого)
             get_gender(message)
-            print(users_data[users_data.username == message.from_user.username].gender.values)
-            if users_data[users_data.username == message.from_user.username].gender.values:
-                print('Идем дальше!')
-                get_age(message)
+        if message.text in config.genders:
+            print('Идем дальше!')
+            get_age(message)
 
 
     elif message.text == "Вернуться в главное меню":
@@ -107,6 +121,10 @@ def communicate(message):
         buttons = (types.KeyboardButton(button_text) for button_text in config.start_buttons)
         markup.add(*buttons)
         bot.send_message(message.chat.id, text="Вы вернулись в главное меню", reply_markup=markup)
+
+    else:
+        update_user(message.chat.username, "self_description", message.text)
+        bot.send_message(message.chat.id, text=f'Отлично! Мы закончили.\nТвое описание:\n"{message.text}"')
 
 
 bot.polling(none_stop=True)
