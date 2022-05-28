@@ -74,34 +74,34 @@ def get_user_tb_column_val(username, column):
         print(e)
 
 
-def get_user_hobbies(username):
+###
+def get_interest(username, interest):
     user_id = get_user_tb_column_val(username, "id")
     try:
-        cursor = connection.cursor()
-        sql = f"""
-                SELECT *
-                FROM user_hobbies
-                WHERE user_id = '{user_id}'
-                """
-        cursor.execute(sql)
-        res = cursor.fetchall()
-        return res[0][2:]
-    except Error as e:
-        print(e)
+        tb_name = ""
+        if interest == "hobbies":
+            tb_name = "user_hobbies"
+        elif interest == "topics":
+            tb_name = "user_topics"
 
-
-def get_user_topics(username):
-    user_id = get_user_tb_column_val(username, "id")
-    try:
         cursor = connection.cursor()
-        sql = f"""
-                SELECT *
-                FROM user_topics
-                WHERE user_id = '{user_id}'
-                """
-        cursor.execute(sql)
-        res = cursor.fetchall()
-        return res[0][2:]
+        get_topics_query = f"""
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '{tb_name}'
+            """
+        cursor.execute(get_topics_query)
+        columns = tuple(i[0] for i in cursor.fetchall()[2:])
+
+        cursor = connection.cursor()
+        get_topics_values_query = f"""
+                    SELECT *
+                    FROM {tb_name}
+                    WHERE user_id = '{user_id}'
+                    """
+        cursor.execute(get_topics_values_query)
+        values = cursor.fetchall()[0][2:]
+        return dict(zip(columns, values))
     except Error as e:
         print(e)
 
@@ -122,6 +122,7 @@ def update_user_tb(username, feature, new_value):
 
 def update_user_hobbies_tb(username, hobby):
     user_id = get_user_tb_column_val(username, "id")
+    print(username, hobby)
     try:
         cursor = connection.cursor()
         sql = f"""
@@ -164,7 +165,6 @@ def check_existence(username):
         print(e)
 
 
-# еще додумать, хочу что-то изящное, пока не пришло в вголову
 def is_not_empty_match_info(username):
     try:
         cursor = connection.cursor()
@@ -180,11 +180,11 @@ def is_not_empty_match_info(username):
         user_info = cursor.fetchall()
         is_almost_one_hobby = False
         is_almost_one_topic = False
-        for i in get_user_topics(username):
+        for i in get_interest(username, "hobbies").values():
             if i:
                 is_almost_one_hobby = True
                 break
-        for i in get_user_hobbies(username):
+        for i in get_interest(username, "topics").values():
             if i:
                 is_almost_one_topic = True
                 break
@@ -194,36 +194,30 @@ def is_not_empty_match_info(username):
 
 
 # update_user_hobbies_tb("slashenaya_nechist", "Учеба")
-# def show_users():
+# def show_columns():
 #     try:
 #         cursor = connection.cursor()
-#         create_table = f"""CREATE TABLE user_topics(
-#         id INT AUTO_INCREMENT PRIMARY KEY,
-#         user_id INT,
-#         Мысли BOOL,
-#         Учеба BOOL,
-#         Искусство BOOL,
-#         `Жизненные истории` BOOL,
-#         Бизнес BOOL,
-#         Работа BOOL,
-#         Спорт BOOL,
-#         Переживания BOOL,
-#         Путешествия BOOL,
-#         Юмор BOOL,
-#         Будущее BOOL)"""
+#         create_table = f"""
+#         SELECT COLUMN_NAME
+#         FROM INFORMATION_SCHEMA.COLUMNS
+#         WHERE TABLE_NAME = 'user_topics'
+#         """
 #         cursor.execute(create_table)
+#         res = cursor.fetchall()
+#         print(res)
 #     except Error as e:
 #         print(e)
+
+
 # for row in cursor.fetchall():
-#     print(row)
-print(is_not_empty_match_info("slashenaya_nechist"))
+# print(get_interest("slashenaya_nechist", "hobbies"))
 # bot = telebot.TeleBot(API_TOKEN)
 # insert_user(username="aca", conv_topics=("123, 1234"))
 # print(is_user_info_filled("Alex"))
 # update_user("slashenaya_nechist","conv_topics", "123")
 # print(is_user_info_filled("slashenaya_nechist"))
 #
-# show_users()
+# show_columns()
 # def send_welcome(message):
 #     print(f"Hello {message}")
 #

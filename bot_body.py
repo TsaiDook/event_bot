@@ -1,7 +1,8 @@
 import telebot
 from telebot import types  # для указание типов
 import config
-from users_tb_iter import insert_user, check_existence, update_user_tb, get_user_tb_column_val, is_not_empty_match_info
+from users_tb_iter import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
+    is_not_empty_match_info
 
 bot = telebot.TeleBot(config.token)
 
@@ -40,6 +41,30 @@ def get_age(message):
                      reply_markup=keyboard)
 
 
+def get_hobbies(message):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    buttons = [types.InlineKeyboardButton(text=hobby,
+                                          callback_data=hobby)
+               for hobby in config.common_hobbies]
+
+    keyboard.add(*buttons)
+    bot.send_message(message.chat.id,
+                     'Великолепно! Расскажи нам о своих интересах. Можешь выбрать от 1 до 8 вариантов:',
+                     reply_markup=keyboard)
+
+
+def get_conv_topics(message):
+    keyboard = types.InlineKeyboardMarkup(row_width=3)
+    buttons = [types.InlineKeyboardButton(text=topic,
+                                          callback_data=topic)
+               for topic in config.common_conv_topics]
+
+    keyboard.add(*buttons)
+    bot.send_message(message.chat.id,
+                     'И последнее: о чем предпочитаешь говорить? (укажи хотя бы 1 пункт 😄)',
+                     reply_markup=keyboard)
+
+
 # CODE DOUBLING!!
 @bot.callback_query_handler(func=lambda call: True)
 def update_data(call):
@@ -47,14 +72,24 @@ def update_data(call):
         info = call.data
         if info in config.genders:
             update_user_tb(call.message.chat.username, "gender", info)
-            bot.send_message(call.message.chat.id, text=f"""Гендер изменен на "{info}" """)
+            bot.send_message(call.message.chat.id, text=f'Гендер изменен на "{info}"')
             get_age(call.message)
         elif info in config.ages:
             update_user_tb(call.message.chat.username, "age", info)
-            bot.send_message(call.message.chat.id, text=f"""Возраст изменен на "{info}" """)
-        else:
-            update_user_tb(call.message.chat.username, "self_description", info)
-            bot.send_message(call.message.chat.id, text=f"""Описание изменено на на "{info}" """)
+            bot.send_message(call.message.chat.id, text=f'Возраст изменен на "{info}"')
+            get_hobbies(call.message)
+        elif info in config.common_hobbies and info != 'DONE':
+            update_user_hobbies_tb(call.message.chat.username, info)
+            bot.send_message(call.message.chat.id, text=f'Добавил хобби "{info}"')
+        elif info == 'DONE':
+            bot.send_message(call.message.chat.id, text='Хобби добавлены! Идем к разговорам!')
+            get_conv_topics(call.message)
+        elif info in config.common_conv_topics and info != 'FINISH':
+            update_user_topics_tb(call.message.chat.username, info)
+            bot.send_message(call.message.chat.id, text=f'Добавил тему "{info}"')
+        elif info == 'FINISH':
+            bot.send_message(call.message.chat.id,
+                             text='Отлично! Чтобы люди лучше понимали, что ты за фрукт, немного опиши себя в свободной форме:')
 
 
 @bot.message_handler(content_types=['text'])
@@ -88,7 +123,9 @@ def communicate(message):
         markup.add(*buttons)
         bot.send_message(message.chat.id, text="Вы вернулись в главное меню", reply_markup=markup)
 
+    else:
+        update_user_tb(message.chat.username, "self_description", message.text)
+        bot.send_message(message.chat.id, text=f'Отлично! Мы закончили.\nТвое описание:\n"{message.text}"')
+
 
 bot.polling(none_stop=True)
-
-# https://habr.com/ru/post/522720/ -- прикольный ввод
