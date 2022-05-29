@@ -79,16 +79,9 @@ def match_user(username, chat_id):
     if challengers:
         bot.send_message(chat_id, text="По-моему, эти чуваки могли бы составить тебе компанию:")
         for challenger in challengers:
-            bot.send_message(chat_id, text=f"""
-Хобби: 
-{' '.join(challenger[1])}
-Темы разговора: 
-{' '.join(challenger[2])}
-Описание: 
-{challenger[3]}
-Тэг в Телеграмме:
-@{challenger[0]}
-                                            """)
+            bot.send_message(chat_id,
+                             text=f"""***Хобби:***\n{', '.join(challenger[1])}\n\n***Любимые темы для разговора:***\n{', '.join(challenger[2])}\n\n***О себе:***\n"{challenger[3]}"\n\n***Тэг в Телеграмме:***\n@{challenger[0]}""",
+                             parse_mode="Markdown")
     else:
         bot.send_message(chat_id, text="Пока что я не могу ни с кем тебя помэтчить :(")
 
