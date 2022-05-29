@@ -81,6 +81,7 @@ def get_interest(username, interest):
                 SELECT COLUMN_NAME 
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME = '{tb_name}'
+                order by ORDINAL_POSITION
                 """
         cursor.execute(get_topics_query)
         columns = tuple(i[0] for i in cursor.fetchall()[2:])
@@ -93,7 +94,9 @@ def get_interest(username, interest):
                     """
         cursor.execute(get_topics_values_query)
         values = cursor.fetchall()[0][2:]
-        return dict(zip(columns, values))
+        interest_dict = dict(zip(columns, values))
+        lovely_hobbies = list(map(lambda x: x[0], filter(lambda x: x[1] == 1, interest_dict.items())))
+        return lovely_hobbies, values
     except Error as e:
         print(e)
 
@@ -193,13 +196,6 @@ def check_existence(username):
         return True if res[0][0] else False
     except Error as e:
         print(e)
-
-
-def is_almost_one_interest(username, interest):
-    for i in get_interest(username, interest).values():
-        if i:
-            return True
-    return False
 
 
 def get_active_users(username):
