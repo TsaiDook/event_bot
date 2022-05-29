@@ -32,11 +32,11 @@ def add_user_hobbies_row(user_id):
     try:
         cursor = connection.cursor()
         add_user_hobbies = f"""
-                            INSERT INTO user_hobbies (user_id, `Настольные игры`, Учеба, Искусство, Наука, `Домашние животные`,
-                                                      Бизнес, Саморазвитие, Спорт, `Компьютерные игры`)
-                                                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            INSERT INTO user_hobbies (user_id, Table_games, Education, Art, Science, Pets,
+                                                      Busyness, Improving, Sport, Computer_games, Blogging)
+                                                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """
-        val = (user_id, False, False, False, False, False, False, False, False, False)
+        val = (user_id, False, False, False, False, False, False, False, False, False, False)
         cursor.execute(add_user_hobbies, val)
         connection.commit()
     except Error as e:
@@ -47,11 +47,11 @@ def add_user_topics_row(user_id):
     try:
         cursor = connection.cursor()
         add_user_hobbies = f"""
-                           INSERT INTO user_topics (user_id, Мысли, Учеба, Искусство, `Жизненные истории`, Работа, Бизнес,
-                                                    Переживания, Спорт, Путешествия, Юмор, Будущее)
-                                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           INSERT INTO user_topics (user_id, Thoughts, Education, Art, Experiences, Work, Busyness,
+                                                    Anxiety, Sport, Travels, Humour, Future, Politics)
+                                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            """
-        val = (user_id, False, False, False, False, False, False, False, False, False, False, False)
+        val = (user_id, False, False, False, False, False, False, False, False, False, False, False, False)
         cursor.execute(add_user_hobbies, val)
         connection.commit()
     except Error as e:

@@ -91,14 +91,14 @@ def update_data(call):
             get_hobbies(chat_id)
             update_user_tb(username, "stage", 2)
         elif answer in config.common_hobbies and answer != 'DONE' and stage in [2, 3]:
-            update_user_hobbies_tb(username, answer)
+            update_user_hobbies_tb(username, config.hobbies_to_eng[answer])
             bot.send_message(chat_id, text=f'Hobby "{answer}" has been added')
             update_user_tb(username, "stage", 3)
         elif answer == 'DONE' and stage == 3:
             get_conv_topics(chat_id)
             update_user_tb(username, "stage", 4)
         elif answer in config.common_conv_topics and answer != 'FINISH' and stage in [4, 5]:
-            update_user_topics_tb(username, answer)
+            update_user_topics_tb(username, config.topics_to_eng[answer])
             bot.send_message(chat_id, text=f'Topic "{answer}" has been added')
             update_user_tb(username, "stage", 5)
         elif answer == 'FINISH' and stage == 5:
@@ -138,7 +138,8 @@ def communicate(message):
     # now we are getting a self-description. otherwise we shall ignore a user
     elif stage == 6:
         update_user_tb(username, "self_description", message_text)
-        bot.send_message(chat_id, text=f'Perfect! We have just finished.\nYour self-description:\n"{message_text}"')
+        bot.send_message(chat_id,
+                         text=f'Your self-description:\n"{message_text}"\nYou may change info with "Edit my profile"')
         update_user_tb(username, "stage", 7)
 
 
