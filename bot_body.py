@@ -93,7 +93,7 @@ def update_user_data(call):
     if call.message:
         answer = call.data
         username = call.message.chat.username
-        stage = get_user_tb_column_val(username, "stage")
+        stage = get_user_tb_column_val(username, "info_stage")
         chat_id = call.message.chat.id
         if answer in config.genders and stage == 0:
             update_user_tb(username, "gender", answer)
@@ -161,20 +161,20 @@ def update_event_data(call):
 def communicate(message):
     message_text = message.text
     username = message.from_user.username
-    stage = get_user_tb_column_val(username, "info_stage")
+    info_stage = get_user_tb_column_val(username, "info_stage")
     chat_id = message.chat.id
     if message_text == "Find event":
-        if stage == 7:
+        if info_stage == 7:
             bot.send_message(chat_id, text="Describe me that!")
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == "Create event":
-        if stage == 7:
+        if info_stage == 7:
             bot.send_message(chat_id, text="Describe the event you wanna add!")
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == "Find similar users":
-        if stage == 7:
+        if info_stage == 7:
             match_user(username, chat_id)
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
@@ -186,11 +186,11 @@ def communicate(message):
     elif message_text == "Back to main menu":
         back_to_main_menu(chat_id)
     # now we are getting a self-description. otherwise we shall ignore a user
-    elif stage == 6:
+    elif info_stage == 6:
         update_user_tb(username, "self_description", message_text)
         bot.send_message(chat_id,
                          text=f'Your self-description:\n"{message_text}"\nYou may change info with "Edit my profile"')
-        update_user_tb(username, "stage", 7)
+        update_user_tb(username, "info_stage", 7)
 
 
 bot.polling(none_stop=True)
