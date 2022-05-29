@@ -1,9 +1,11 @@
 import telebot
 from telebot import types
 import config
-from users_tb_iter import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
+from users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
     get_user_tb_column_val
 from match_users import interests_match
+import re
+import datetime
 
 bot = telebot.TeleBot(config.token)
 
@@ -87,7 +89,7 @@ def match_user(username, chat_id):
 
 
 @bot.callback_query_handler(func=lambda call: True)
-def update_data(call):
+def update_user_data(call):
     if call.message:
         answer = call.data
         username = call.message.chat.username
@@ -97,34 +99,69 @@ def update_data(call):
             update_user_tb(username, "gender", answer)
             bot.send_message(chat_id, text=f'Gender has been changed to "{answer}"')
             get_age(chat_id)
-            update_user_tb(username, "stage", 1)
+            update_user_tb(username, "info_stage", 1)
         elif answer in config.ages and stage == 1:
             update_user_tb(username, "age", answer)
             bot.send_message(chat_id, text=f'Age has been changed to "{answer}"')
             get_hobbies(chat_id)
-            update_user_tb(username, "stage", 2)
+            update_user_tb(username, "info_stage", 2)
         elif answer in config.common_hobbies and answer != 'DONE' and stage in [2, 3]:
             update_user_hobbies_tb(username, config.hobbies_to_eng[answer])
             bot.send_message(chat_id, text=f'Hobby "{answer}" has been added')
-            update_user_tb(username, "stage", 3)
+            update_user_tb(username, "info_stage", 3)
         elif answer == 'DONE' and stage == 3:
             get_conv_topics(chat_id)
-            update_user_tb(username, "stage", 4)
+            update_user_tb(username, "info_stage", 4)
         elif answer in config.common_conv_topics and answer != 'FINISH' and stage in [4, 5]:
             update_user_topics_tb(username, config.topics_to_eng[answer])
             bot.send_message(chat_id, text=f'Topic "{answer}" has been added')
-            update_user_tb(username, "stage", 5)
+            update_user_tb(username, "info_stage", 5)
         elif answer == 'FINISH' and stage == 5:
             bot.send_message(chat_id,
                              text='Awesome!\nEventually add a little self-description:')
-            update_user_tb(username, "stage", 6)
+            update_user_tb(username, "info_stage", 6)
+
+
+def get_date(chat_id):
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    now = datetime.datetime.now()
+    options = [(now + datetime.timedelta(days=i)).strftime("%d:%m:%y") for i in range(8)]
+    buttons = [types.InlineKeyboardButton(text=option,
+                                          callback_data=option)
+               for option in options]
+
+    keyboard.add(*buttons)
+    bot.send_message(chat_id,
+                     "Enter event's date:",
+                     reply_markup=keyboard)
+
+
+def get_time_period(chat_id):
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    buttons = [types.InlineKeyboardButton(text=time_period,
+                                          callback_data=time_period)
+               for time_period in config.time_periods]
+
+    keyboard.add(*buttons)
+    bot.send_message(chat_id,
+                     "Enter event's beginning time:",
+                     reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def update_event_data(call):
+    if call.message:
+        answer = call.data
+        username = call.message.chat.username
+        event_stage = get_user_tb_column_val(username, "event_stage")
+        chat_id = call.message.chat.id
 
 
 @bot.message_handler(content_types=['text'])
 def communicate(message):
     message_text = message.text
     username = message.from_user.username
-    stage = get_user_tb_column_val(username, "stage")
+    stage = get_user_tb_column_val(username, "info_stage")
     chat_id = message.chat.id
     if message_text == "Find event":
         if stage == 7:
@@ -142,7 +179,7 @@ def communicate(message):
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == 'Edit my profile':
-        update_user_tb(username, "stage", 0)
+        update_user_tb(username, "info_stage", 0)
         bot.send_message(chat_id, "Let's start!")
         # start to getting data from user
         get_gender(chat_id)
