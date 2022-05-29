@@ -83,6 +83,7 @@ def get_interest(username, interest):
                 SELECT COLUMN_NAME 
                 FROM INFORMATION_SCHEMA.COLUMNS 
                 WHERE TABLE_NAME = '{tb_name}'
+                order by ORDINAL_POSITION
                 """
         cursor.execute(get_topics_query)
         columns = tuple(i[0] for i in cursor.fetchall()[2:])
@@ -95,7 +96,11 @@ def get_interest(username, interest):
                     """
         cursor.execute(get_topics_values_query)
         values = cursor.fetchall()[0][2:]
-        return dict(zip(columns, values))
+
+        values_dict = dict(zip(columns, values))
+        nonzero_columns = list(map(lambda x: x[0], filter(lambda x: x[1] == 1, values_dict.items())))
+
+        return nonzero_columns, values
     except Error as e:
         print(e)
 
@@ -179,5 +184,20 @@ def is_not_empty_match_info(username):
                 is_almost_one_topic = True
                 break
         return True if (user_info and is_almost_one_hobby and is_almost_one_topic) else False
+    except Error as e:
+        print(e)
+
+
+def get_active_users(name):
+    try:
+        cursor = connection.cursor()
+        query = f"""
+                 SELECT username FROM users 
+                 WHERE is_active = 1 AND username != '{name}'
+                 """
+        cursor.execute(query)
+        res = cursor.fetchall()
+        res = list(map(lambda x: x[0], res))
+        return res
     except Error as e:
         print(e)

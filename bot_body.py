@@ -3,6 +3,7 @@ from telebot import types
 import config
 from users_tb_iter import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
     get_user_tb_column_val
+from match_users import interests_match
 
 bot = telebot.TeleBot(config.token)
 
@@ -73,6 +74,25 @@ def back_to_main_menu(chat_id):
     bot.send_message(chat_id, text="You are in the main menu now", reply_markup=markup)
 
 
+def match_user(username, chat_id):
+    challengers = interests_match(username)
+    if challengers:
+        bot.send_message(chat_id, text="По-моему, эти чуваки могли бы составить тебе компанию:")
+        for challenger in challengers:
+            bot.send_message(chat_id, text=f"""
+Хобби: 
+{' '.join(challenger[1])}
+Темы разговора: 
+{' '.join(challenger[2])}
+Описание: 
+{challenger[3]}
+Тэг в Телеграмме:
+@{challenger[0]}
+                                            """)
+    else:
+        bot.send_message(chat_id, text="Пока что я не могу ни с кем тебя помэтчить :(")
+
+
 @bot.callback_query_handler(func=lambda call: True)
 def update_data(call):
     if call.message:
@@ -125,7 +145,7 @@ def communicate(message):
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == "Find similar users":
         if stage == 7:
-            bot.send_message(chat_id, "I'm about to match!")
+            match_user(username, chat_id)
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == 'Edit my profile':
