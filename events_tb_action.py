@@ -7,7 +7,7 @@ connection = connect(
     database="coffee_bot")
 
 
-def insert_event(creator_username, day, time, event_description="Пусто"):
+def insert_event(creator_username, day=None, time=None, event_description="Пусто"):
     try:
         cursor = connection.cursor()
         add_event = f"""
@@ -56,6 +56,23 @@ def get_all_events_by_day(day):
               WHERE day = '{day}'
               """
         cursor.execute(sql)
-        return cursor.fetchall()
+        data = cursor.fetchall()
+        data = list(map(lambda x: tuple([x[1], x[3], x[4]]), data))
+        return data
+    except Error as e:
+        print(e)
+
+
+def get_event_tb_column_val(username, column):
+    try:
+        cursor = connection.cursor()
+        sql = f"""
+               SELECT {column}
+               FROM events
+               WHERE creator = '{username}'
+               """
+        cursor.execute(sql)
+        res = cursor.fetchall()
+        return res[0][0]
     except Error as e:
         print(e)
