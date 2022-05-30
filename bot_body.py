@@ -175,10 +175,12 @@ def communicate(message):
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == "Create event":
         if info_stage == 7:
-            update_user_tb(username, "event_stage", 0)
-            insert_event(username)
-            bot.send_message(chat_id, text="Describe the event you wanna add!\nChoose the date:")
-            get_date(chat_id)
+            if event_stage != 3:
+                insert_event(username)
+                bot.send_message(chat_id, text="Describe the event you wanna add!\nChoose the date:")
+                get_date(chat_id)
+            else:
+                bot.send_message(chat_id, text="You have already registered your event(\nYou may delete or edit it")
         else:
             bot.send_message(chat_id, text="You have to fill information about yourself for start!")
     elif message_text == "Find similar users":
