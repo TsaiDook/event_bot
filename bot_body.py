@@ -3,7 +3,7 @@ from telebot import types
 import config
 from users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
     get_user_tb_column_val, get_interest_val, get_interest
-from match_users import interests_match, extract_features
+from match_users import interests_match
 from events_tb_action import insert_event, update_event_tb, get_all_events_by_day
 from match_events import event_match
 import datetime
@@ -70,41 +70,85 @@ def get_conv_topics(chat_id):
                      reply_markup=keyboard, parse_mode="Markdown")
 
 
+# СДЕЛАЛ ВОТ ТАКУЮ ШТУКУ
+# +- ТО ЖЕ, ЧТО У ТЕБЯ -- Ю НОУ
+# КОГДА ЮЗЕР ИЩЕТ СОБЫТИЯ ИЛИ ДРУГИХ ЮЗЕРОВ, У НЕГО 2 КНОПКИ: "В МЕНЮ" И "ЕЩЕ"
+# ДАЛЕЕ ОПИШУ, ЧТО Я СДЕЛАЛ С "ЕЩЕ"
 def back_to_main_menu(chat_id):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     buttons = (types.KeyboardButton(button_text) for button_text in config.start_buttons)
     markup.add(*buttons)
-    bot.send_message(chat_id, text="Ты в главном меню!", reply_markup=markup)
+    bot.send_message(chat_id, text="Ты в главном меню", reply_markup=markup)
 
 
-# It is not logical that this piece of code is here, not in match_users.py
-def make_user_match(username, chat_id):
+# В ФУНКЦИЯХ МЭТЧА ВЫТАСКИВАЮ ВООБЩЕ ВСЕ ОБЪЕКТЫ, А ПОТОМ БЕРУ ОПРЕДЕЛЕННЫЙ СРЕЗ ПО УСЛОВИЮ
+# В СЛОВАРЕ ЮЗЕРОВ (КОСТЫЫЫЛЬ) Я ХРАНЮ ДЛЯ КАЖДОГО, СКОЛЬКО МЭТЧЕЙ ПОДРЯД ОН ДЕЛАЕТ
+# И В ЗАВИСИМОСТИ ОТ ЭТОГО БЕРУ ЛИБО СНАЧАЛА TOP_N, ЛИБО С ОПРЕДЕЛЕННОГО МОМЕНТА
+# КОГДА ЮЗЕР УХОДИТ В ГЛАВНОЕ МЕНЮ, СБРАСЫВАЮ ЭТИ ПЕРЕМЕННЫЕ ДО НУЛЕЙ
+# СОБСТВЕННО, ВСЕ, ЧТО Я СДЕЛАЛ
+# В КЛАССЕ ЮЗЕРА МОЖНО ХРАНИТЬ ЭТИ И НЕКОТОРЫЕ ДРУГИЕ АТРИБУТЫ И ДЕЛАТЬ ЭТО КРАСИВО
+
+# ТАКЖЕ Я ЗАНЕС В CONFIG TOP_N И START (МЕСТО, ОТКУДА ДЕЛАЮ МЭТЧ), ЧТОБ НЕ ХАРДКОДИТЬ СЛИШКОМ
+def make_user_match(username, chat_id, start=config.start, top_n=config.top_n):
     challengers = interests_match(username)
+    try:
+        challengers = challengers[start:start + top_n]
+    except IndexError:
+        try:
+            challengers = challengers[start:]
+        except IndexError:
+            challengers = None
     if challengers:
-        bot.send_message(chat_id, text="По-моему, эти чуваки могли бы составить тебе компанию:")
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        buttons = [types.KeyboardButton("Еще"), types.KeyboardButton("В главное меню")]
+        markup.add(*buttons)
+
+        bot.send_message(chat_id, text="По-моему, эти чуваки могли бы составить тебе компанию:", reply_markup=markup)
         for challenger in challengers:
-            challenger_hobbies = ', '.join(challenger[1])
-            challenger_topics = ', '.join(challenger[2])
+            challenger_hobbies = ', '.join(challenger[2])
+            challenger_topics = ', '.join(challenger[3])
             bot.send_message(chat_id,
-                             text=f"""***Хобби:***\n{challenger_hobbies}\n\n***Любимые темы для разговора:***\n{challenger_topics}\n\n***О себе:***\n"{challenger[3]}"\n\n***Тэг в Телеграмме:***\n@{challenger[0]}""",
+                             text=f"""***Хобби:***\n{challenger_hobbies}\n\n***Любимые темы для разговора:***\n{challenger_topics}\n\n***О себе:***\n"{challenger[5]}"\n\n***Возраст:*** {challenger[4]}\n\n***Тэг в Телеграмме:***\n@{challenger[1]}""",
                              parse_mode="Markdown")
     else:
-        bot.send_message(chat_id, text="Пока что я не могу ни с кем тебя помэтчить :(")
+        bot.send_message(chat_id, text="Никого не нашел :(")
 
-
-def make_event_match(username, chat_id, event_day=None, event_time=None):
-    possible_options = get_all_events_by_day(event_day)
-    if possible_options:
-        best_options = event_match(username, event_day, event_time)
-        for option in best_options:
-            creator_name, suggested_time, event_description = option[:3]
-            bot.send_message(chat_id,
-                             text=f"""***Начало:***\n{suggested_time}\n\n***Описание:***\n{event_description}\n\n***Автор:***\n@{creator_name}""",
-                             parse_mode="Markdown")
+# ТУТ ТОЖЕ НЕБОЛЬШИЕ ИЗМЕНЕНИЯ
+# + ЗАПРЕТИЛ ЮЗЕРУ ИСКАТЬ СОБЫТИЯ ИЗ ПРОШЛОГО
+# НАДО НЕ ЗАБЫТЬ НАПИСАТЬ ФУНКЦИЮ ДЛЯ УДАЛЕНИЯ СТАРЫХ СОБЫТИЙ
+# ОНА ИЗИ. + КИДАТЬ СООБЩЕНИЕ ЮЗЕРУ, ЧТО СОБЫТИЕ УДАЛЕНО, И ОН МОЖЕТ СОЗДАТЬ НОВОЕ
+# ЕЩЕ ДОБАВИЛ В ВЫВОД ВОЗРАСТ ЮЗЕРОВ, А ТО ЧЕТ ЗАБЫЛИ
+def make_event_match(username, chat_id, event_day=None, event_time=None, start=config.start, top_n=config.top_n):
+    now = datetime.datetime.now()
+    curr_time = str(datetime.time(now.hour, now.minute))
+    curr_day = str(datetime.date(now.year, now.month, now.day))
+    if curr_time > event_time[-4:] and curr_day.replace('-', '.') == event_day and event_time != "После 21:00":
+        bot.send_message(chat_id, text="Не могу сделать мэтч в прошлое :)")
     else:
-        bot.send_message(chat_id, text="В этот день пока что никто не тусит, но ты можешь создать свое событие!")
+        possible_options = get_all_events_by_day(event_day)
+        if possible_options:
+            best_options = event_match(username, event_day, event_time)
+            try:
+                best_options = best_options[start:start + top_n]
+            except IndexError:
+                try:
+                    best_options = best_options[start:]
+                except IndexError:
+                    best_options = None
+            if best_options:
+                for option in best_options:
+                    creator_name, suggested_time, event_description = option[:3]
+                    creator_age = get_user_tb_column_val(creator_name, "age")
+                    bot.send_message(chat_id,
+                                     text=f"""***Начало:***\n{suggested_time}\n\n***Описание:***\n{event_description}\n\n***Возраст:***\n{creator_age}\n\n***Автор:***\n@{creator_name}""",
+                                     parse_mode="Markdown")
+            else:
+                bot.send_message(chat_id,
+                                 text="На этом все (")
+        else:
+            bot.send_message(chat_id, text="В этот день пока что никто не тусит, но ты можешь создать свое событие!")
 
-    update_user_tb(username, "searching_stage", 0)
+        update_user_tb(username, "searching_stage", 0)
 
 
 def reset_info(username):
@@ -116,7 +160,13 @@ def reset_info(username):
 
 
 def show_user_profile(username, chat_id):
-    user_hobbies, user_topics = extract_features(username)[:2]
+    user_hobbies, user_topics = get_interest(username, 'hobbies')[0], get_interest(username, 'topics')[0]
+    user_hobbies = list(
+        map(lambda x: list(config.hobbies_to_eng.keys())[list(config.hobbies_to_eng.values()).index(x)],
+            user_hobbies))
+    user_topics = list(
+        map(lambda x: list(config.topics_to_eng.keys())[list(config.topics_to_eng.values()).index(x)],
+            user_topics))
     user_hobbies = ", ".join(user_hobbies)
     user_topics = ", ".join(user_topics)
     self_description = get_user_tb_column_val(username, "self_description")
@@ -128,14 +178,14 @@ def show_user_profile(username, chat_id):
 # КОСТЫЛИЩЕ
 users = {}
 
-
+# В ХЭНДЛЕР-ФУНКЦИЯХ ЕЩЕ ПАРОЧКА ИФОВ, СООТВЕТСТВЕННО (ЗАЕБАЛИ УЖЕ)
 @bot.callback_query_handler(func=lambda call: True)
 def update_user_data(call):
     if call.message:
         answer = call.data
         username = call.message.chat.username
         if username not in users:
-            users[username] = {"event_day": None, "event_time": None}
+            users[username] = {"event_day": None, "event_time": None, "match_users_row": 0, "match_events_row": 0}
 
         info_stage = get_user_tb_column_val(username, "info_stage")
         event_stage = get_user_tb_column_val(username, "event_stage")
@@ -188,7 +238,6 @@ def update_user_data(call):
 
         elif answer in config.time_periods and searching_stage == 2:
             users[username]["event_time"] = answer
-            bot.send_message(chat_id, text=f'Принял! Думаю, эти варианты неплохи:')
             make_event_match(username, chat_id, users[username]["event_day"], users[username]["event_time"])
 
         elif answer in day_options and event_stage == 0:
@@ -250,9 +299,15 @@ def communicate(message):
     event_stage = get_user_tb_column_val(username, "event_stage")
     chat_id = message.chat.id
 
+    if username not in users:
+        users[username] = {"event_day": None, "event_time": None, "match_users_row": 0, "match_events_row": 0}
+
     if message_text == "Найти событие":
         if info_stage == 7:
-            bot.send_message(chat_id, text="Опиши мне его!")
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            buttons = [types.KeyboardButton("Далее"), types.KeyboardButton("В главное меню")]
+            markup.add(*buttons)
+            bot.send_message(chat_id, text="Опиши мне его!", reply_markup=markup)
             update_user_tb(username, "searching_stage", 1)
             get_date(chat_id)
         else:
@@ -273,10 +328,21 @@ def communicate(message):
 
     elif message_text == "Найти похожих юзеров":
         if info_stage == 7:
-            make_user_match(username, chat_id)
+            make_user_match(username, chat_id, start=config.start)
         else:
             bot.send_message(chat_id, text='Для начала расскажи о себе в ***Редактировать профиль***!',
                              parse_mode="Markdown")
+
+    elif message_text == "Еще":
+        attempt = users[username]["match_users_row"] + 1
+        make_user_match(username, chat_id, start=config.start + config.top_n * attempt)
+        users[username]["match_users_row"] += 1
+
+    elif message_text == "Далее":
+        attempt = users[username]["match_events_row"] + 1
+        make_event_match(username, chat_id, users[username]["event_day"], users[username]["event_time"],
+                         start=config.start + config.top_n * attempt)
+        users[username]["match_events_row"] += 1
 
     elif message_text == 'Редактировать профиль':
         # clear old info
@@ -284,6 +350,11 @@ def communicate(message):
         # start to getting data from user
         bot.send_message(chat_id, "Давай начнем!")
         get_gender(chat_id)
+
+    elif message_text == "В главное меню":
+        back_to_main_menu(chat_id)
+        users[username]["match_users_row"] = 0
+        users[username]["match_events_row"] = 0
 
     # now we are getting a self-description. otherwise we shall ignore a user
     elif info_stage == 6 and message_text:
