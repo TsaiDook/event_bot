@@ -1,4 +1,4 @@
-USERS = """CREATE TABLE users(
+USERS = f"""CREATE TABLE users(
 id INT AUTO_INCREMENT PRIMARY KEY,
 age VARCHAR(7),
 gender VARCHAR(7),
@@ -6,6 +6,7 @@ username VARCHAR(32),
 self_description TEXT,
 info_stage INT,
 event_stage INT,
+searching_stage INT,
 is_active BOOl)"""
 
 HOBBIES = """CREATE TABLE user_hobbies(

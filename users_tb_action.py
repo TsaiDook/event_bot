@@ -8,14 +8,15 @@ connection = connect(
 
 
 def insert_user(age=None, gender=None, username=None, self_description="Пусто", curr_info_stage=0, curr_event_stage=0,
-                is_active=True):
+                is_searching_event=False, is_active=True):
     try:
         cursor = connection.cursor()
         add_user = f"""
-                    INSERT INTO users (age, gender, username, self_description, info_stage, event_stage, is_active)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO users (age, gender, username, self_description, info_stage, event_stage, searching_stage, is_active)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """
-        val = (age, gender, username, self_description, curr_info_stage, curr_event_stage, is_active)
+        val = (
+            age, gender, username, self_description, curr_info_stage, curr_event_stage, is_searching_event, is_active)
         cursor.execute(add_user, val)
         connection.commit()
 
@@ -95,13 +96,13 @@ def get_interest(username, interest):
         cursor.execute(get_topics_values_query)
         values = cursor.fetchall()[0][2:]
         interest_dict = dict(zip(columns, values))
-        lovely_hobbies = list(map(lambda x: x[0], filter(lambda x: x[1] == 1, interest_dict.items())))
-        return lovely_hobbies, values
+        lovely_interests = list(map(lambda x: x[0], filter(lambda x: x[1] == 1, interest_dict.items())))
+        return lovely_interests, values
     except Error as e:
         print(e)
 
 
-def reset_interest(username, interest):
+# def reset_in?terest(username, interest):
     user_id = get_user_tb_column_val(username, "id")
     try:
         cursor = connection.cursor()
@@ -154,13 +155,13 @@ def update_user_tb(username, feature, new_value):
         print(e)
 
 
-def update_user_hobbies_tb(username, hobby):
+def update_user_hobbies_tb(username, hobby, new_val=1):
     user_id = get_user_tb_column_val(username, "id")
     try:
         cursor = connection.cursor()
         sql = f"""
                UPDATE user_hobbies
-               SET {hobby} = 1
+               SET {hobby} = {new_val}
                WHERE user_id = {user_id}
                """
         cursor.execute(sql)
@@ -169,13 +170,13 @@ def update_user_hobbies_tb(username, hobby):
         print(e)
 
 
-def update_user_topics_tb(username, topic):
+def update_user_topics_tb(username, topic, new_val=1):
     user_id = get_user_tb_column_val(username, "id")
     try:
         cursor = connection.cursor()
         sql = f"""
                UPDATE user_topics
-               SET {topic} = 1
+               SET {topic} = {new_val}
                WHERE user_id = {user_id}
                """
         cursor.execute(sql)
@@ -194,6 +195,22 @@ def check_existence(username):
         cursor.execute(query)
         res = cursor.fetchall()
         return True if res[0][0] else False
+    except Error as e:
+        print(e)
+
+
+def get_interest_val(username, column, hobbies=True):
+    try:
+        cursor = connection.cursor()
+        user_id = get_user_tb_column_val(username, "id")
+        table = "user_hobbies" if hobbies else "user_topics"
+        query = f"""
+                 SELECT {column} FROM {table}
+                 WHERE user_id = {user_id}
+                 """
+        cursor.execute(query)
+        res = cursor.fetchall()
+        return res[0][0]
     except Error as e:
         print(e)
 
