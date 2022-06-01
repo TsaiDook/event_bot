@@ -1,3 +1,5 @@
+import datetime
+
 from mysql.connector import connect, Error
 
 connection = connect(
@@ -40,7 +42,7 @@ def delete_event(creator_username):
         cursor = connection.cursor()
         sql = f""" 
                DELETE FROM events 
-               WHERE creator = {creator_username}
+               WHERE creator = '{creator_username}'
                """
         cursor.execute(sql)
         connection.commit()
@@ -48,12 +50,12 @@ def delete_event(creator_username):
         print(e)
 
 
-def get_all_events_by_day(day):
+def get_all_events_by_day(day, creator_username):
     try:
         cursor = connection.cursor()
         sql = f"""
               SELECT * FROM events 
-              WHERE day = '{day}'
+              WHERE day = '{day}' and creator != '{creator_username}'
               """
         cursor.execute(sql)
         data = cursor.fetchall()
@@ -76,3 +78,39 @@ def get_event_tb_column_val(username, column):
         return res[0][0]
     except Error as e:
         print(e)
+
+
+def get_event_by_creator(username):
+    try:
+        cursor = connection.cursor()
+        sql = f"""SELECT * FROM events WHERE creator = '{username}'"""
+        cursor.execute(sql)
+        res = cursor.fetchall()
+        return res[0] if res else False
+    except Error as e:
+        print(e)
+
+
+def find_old_events():
+    try:
+        cursor = connection.cursor()
+        now = datetime.datetime.now()
+        curr_date = str(datetime.date(year=now.year, month=now.month, day=now.day))
+        curr_time = str(datetime.time(hour=now.hour))
+
+        query = f"""SELECT creator FROM events
+                 WHERE (day < "{curr_date}") OR (day = "{curr_date}" AND LEFT(RIGHT(time, 5), 2) < "{curr_time}");
+                 """
+
+        cursor.execute(query)
+        users_to_notify = cursor.fetchall()
+        return users_to_notify
+    except Error as e:
+        print(e)
+
+
+def delete_and_notify():
+    users_to_notify = find_old_events()
+    for user in users_to_notify:
+        username = user[0]
+        delete_event(username)

@@ -8,7 +8,7 @@ connection = connect(
 
 
 def insert_user(age=None, gender=None, username=None, self_description="Пусто", curr_info_stage=0, curr_event_stage=0,
-                is_searching_event=False, is_active=True):
+                curr_searching_stage=0, is_active=True):
     try:
         cursor = connection.cursor()
         add_user = f"""
@@ -16,7 +16,7 @@ def insert_user(age=None, gender=None, username=None, self_description="Пуст
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """
         val = (
-            age, gender, username, self_description, curr_info_stage, curr_event_stage, is_searching_event, is_active)
+            age, gender, username, self_description, curr_info_stage, curr_event_stage, curr_searching_stage, is_active)
         cursor.execute(add_user, val)
         connection.commit()
 
@@ -97,7 +97,7 @@ def get_interest(username, interest):
         values = cursor.fetchall()[0][2:]
         interest_dict = dict(zip(columns, values))
         lovely_interests = list(map(lambda x: x[0], filter(lambda x: x[1] == 1, interest_dict.items())))
-        return lovely_interests, values
+        return lovely_interests
     except Error as e:
         print(e)
 
