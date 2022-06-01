@@ -84,6 +84,6 @@ def get_event_by_creator(username):
         sql = f"""SELECT * FROM events WHERE creator = '{username}'"""
         cursor.execute(sql)
         res = cursor.fetchall()
-        return res[0]
+        return res[0] if res else False
     except Error as e:
         print(e)

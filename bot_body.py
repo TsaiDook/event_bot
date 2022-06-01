@@ -41,7 +41,7 @@ def profile_events_match_btns(message):
         key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         key.row("Редактировать профиль", "Вернуться в меню")
         send = bot.send_message(message.from_user.id, text=user_profile_text, reply_markup=key, parse_mode="HTML")
-        bot.register_next_step_handler(send, edit_profile_menu_btns)
+        bot.register_next_step_handler(send, edit_profile_btns)
     elif message.text == "События":
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if get_event_by_creator(message.from_user.username):
@@ -61,7 +61,7 @@ def profile_events_match_btns(message):
 
 
 def event_btns(message):
-    if message.text == "Редактировать" or message.text == "Создать":
+    if message.text == "Редактировать" or message.text == "Создать событие":
         delete_event(message.from_user.username)
         insert_event(message.from_user.username)
         update_user_tb(message.from_user.username, "event_stage", 0)
@@ -99,13 +99,36 @@ def get_time_period(chat_id):
                      reply_markup=keyboard)
 
 
-def edit_profile_menu_btns(message):
+def edit_profile_btns(message):
     if message.text == "Редактировать профиль":
-        reset_info(message.from_user.username)
-        get_gender(message.chat.id)
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        if get_user_tb_column_val(message.from_user.username, "is_active"):
+            keyboard.row("Изменить данные", "Выключить поиск", "Вернуться в меню")
+        else:
+            keyboard.row("Изменить данные", "Включить поиск", "Вернуться в меню")
+        send = bot.send_message(message.chat.id, text="Что хочешь сделать?", reply_markup=keyboard)
+        bot.register_next_step_handler(send, edit_profile)
     elif message.text == "Вернуться в меню":
         main_menu(message)
 
+
+def edit_profile(message):
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    if message.text == "Изменить данные":
+        reset_info(message.from_user.username)
+        get_gender(message.chat.id)
+    elif message.text == "Включить поиск":
+        update_user_tb(message.from_user.username, "is_active", 1)
+        keyboard.row("Изменить данные", "Включить поиск", "Вернуться в меню")
+        send = bot.send_message(message.chat.id, text="Готово! Что дальше?", reply_markup=keyboard)
+        bot.register_next_step_handler(send, edit_profile)
+    elif message.text == "Выключить поиск":
+        update_user_tb(message.from_user.username, "is_active", 0)
+        keyboard.row("Изменить данные", "Включить поиск", "Вернуться в меню")
+        send = bot.send_message(message.chat.id, text="Готово! Что дальше?", reply_markup=keyboard)
+        bot.register_next_step_handler(send, edit_profile)
+    elif message.text == "Вернуться в меню":
+        main_menu(message)
 
 def get_gender(chat_id):
     keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -152,17 +175,17 @@ def get_conv_topics(chat_id):
                      'С хобби закончили!\nА о чем ты предпочитаешь поговорить? ***Выбери от 1 до 8 вариантов:***',
                      reply_markup=keyboard, parse_mode="Markdown")
 
-
 def self_describing(message):
     update_user_tb(message.from_user.username, "self_description", message.text)
     main_menu(message)
+
 
 def event_describing(message):
     update_event_tb(message.from_user.username, "description", message.text)
     keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.row("Редактировать", "Найти события", "Вернуться в меню")
-    bot.send_message(message.from_user.id, "Готово! Что дальше?", reply_markup=keyboard)
-
+    sent = bot.send_message(message.from_user.id, "Готово! Что дальше?", reply_markup=keyboard)
+    bot.register_next_step_handler(sent, event_btns)
 
 # It is not logical that this piece of code is here, not in match_users.py
 # def make_user_match(username, chat_id):
@@ -295,6 +318,7 @@ def update_user_data(call):
             sent = bot.send_message(chat_id, text=f'Начало: "{answer}"\nКратко опиши событие:')
             update_user_tb(username, "event_stage", 2)
             bot.register_next_step_handler(sent, event_describing)
+
 
 def change_activity_status(username, chat_id):
     curr_activity = get_user_tb_column_val(username, "is_active")
