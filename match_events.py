@@ -5,12 +5,15 @@ from config import time_periods_to_num
 
 def count_events_similarity(user1, time1, user2, time2):
     users_similarity = sum_user_similarity(user1, user2)
-    events_similarity = users_similarity / (abs(time_periods_to_num[time1] - time_periods_to_num[time2]) + 1)
+    if users_similarity > 0:
+        events_similarity = users_similarity / (abs(time_periods_to_num[time1] - time_periods_to_num[time2]) + 1)**2
+    else:
+        events_similarity = users_similarity * (abs(time_periods_to_num[time1] - time_periods_to_num[time2]) + 1)**2
     return events_similarity
 
 
 def event_match(username, event_day, event_time):
-    potential_events = get_all_events_by_day(event_day)
+    potential_events = get_all_events_by_day(event_day, username)
 
     best_events = []
     for potential_event in potential_events:

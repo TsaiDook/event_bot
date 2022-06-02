@@ -5,8 +5,8 @@ from users_tb_action import get_interest, get_user_tb_column_val, get_active_use
 
 
 def count_feature_similarity(usr1, usr2, feature) -> int:
-    usr1_values = get_interest(usr1, feature)[0]
-    usr2_values = get_interest(usr2, feature)[0]
+    usr1_values = get_interest(usr1, feature)
+    usr2_values = get_interest(usr2, feature)
     data = config.hobbies_to_eng.values() if feature == "hobbies" else config.topics_to_eng.values()
     summa = 0
     for sample in data:
@@ -31,23 +31,15 @@ def sum_user_similarity(usr1, usr2):
 
 # make return top n massiv
 def interests_match(user):
-    # Structure: username, hobbies, topics, description, similarity
+    # Structure: similarity, username
     other_usernames = get_active_users(user)
     challengers = []
     for challenger in other_usernames:
-        similarity = sum_user_similarity(user, challenger)
-        lovely_hobbies = get_interest(challenger, "hobbies")[0]
-        lovely_hobbies = list(
-            map(lambda x: list(config.hobbies_to_eng.keys())[list(config.hobbies_to_eng.values()).index(x)],
-                lovely_hobbies))
-        lovely_topics = get_interest(challenger, "topics")[0]
-        lovely_topics = list(
-            map(lambda x: list(config.topics_to_eng.keys())[list(config.topics_to_eng.values()).index(x)],
-                lovely_topics))
-        description = get_user_tb_column_val(challenger, "self_description")
-        challenger_age = get_user_tb_column_val(challenger, "age")
-
-        challengers.append(tuple([similarity, challenger, lovely_hobbies, lovely_topics, challenger_age, description]))
+        try:
+            similarity = sum_user_similarity(user, challenger)
+            challengers.append(tuple([similarity, challenger]))
+        except KeyError as e:
+            print(e)
 
     challengers.sort(key=lambda x: x[0], reverse=True)
     return challengers
