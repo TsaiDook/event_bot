@@ -8,53 +8,78 @@ from events_tb_action import insert_event, update_event_tb, get_all_events_by_da
     get_event_tb_column_val, find_old_events
 from match_events import event_match
 from match_users import interests_match
-from users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
-    get_user_tb_column_val, get_interest_val, get_interest
+from users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, \
+    update_user_topics_tb, get_user_tb_column_val, get_interest_val, get_interest
 
 bot = telebot.TeleBot(config.token)
 
-users = {}
+
+class User:
+    def __init__(self, user_id, username):
+        self._id = user_id
+        self.name = username
+        self.match_users_row = 0
+        self.match_events_row = 0
+        self.event_day = None
+        self.event_time = None
+
+
+class Users:
+    def __init__(self):
+        self.users = {}
+
+    def add_user(self, user):
+        self.users[user._id] = user
+
+    def get_user(self, user_id):
+        return self.users[user_id]
+
+
+users = Users()
 
 
 @bot.message_handler(commands=['start'])
-def start_msg(message):
+def start_message(message):
     chat_id, username = message.chat.id, message.from_user.username
     bot.send_message(chat_id,
-                     text=f"Привет, {username}! {config.intro_text}")
+                     text=f"Привет, {username}! {config.intro_text}", parse_mode="Markdown")
     if not check_existence(username):
         insert_user(username=username)
-    users[username] = {"match_users_row": 0, "match_events_row": 0}
+    users.add_user(User(message.from_user.id, message.from_user.username))
     main_menu(message)
 
 
 def main_menu(message):
     key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-    key.row("Мой профиль")
-    key.row("События")
+    key.row("Перейти в профиль")
+    key.row("Посмотреть события")
     key.row("Найти похожих пользователей")
     send = bot.send_message(message.from_user.id, "Ты в главном меню", reply_markup=key)
     bot.register_next_step_handler(send, profile_events_match_btns)
+    update_user_tb(message.from_user.username, "searching_stage", 0)
 
 
 def profile_events_match_btns(message):
-    if message.text == "Мой профиль":
+    if message.text == "Перейти в профиль":
         user_profile_text = get_user_profile_text(message.from_user.username)
         key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=1)
         key.row("Редактировать профиль")
         key.row("Вернуться в меню")
         send = bot.send_message(message.from_user.id, text=user_profile_text, reply_markup=key, parse_mode="MarkdownV2")
         bot.register_next_step_handler(send, edit_profile_btns)
-    elif message.text == "События":
+    elif message.text == "Посмотреть события":
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if get_event_by_creator(message.from_user.username):
-            # TODO show event
-            keyboard.row("Мое событие", "Редактировать")
-            keyboard.row("Найти события", "Вернуться в меню")
+            keyboard.row("Покажи мое событие")
+            keyboard.row("Редактировать мое событие")
+            keyboard.row("Удали мое событие")
+            keyboard.row("Найти события по времени")
+            keyboard.row("Вернуться в меню")
         else:
             keyboard.row("Создать событие")
-            keyboard.row("Найти события")
+            keyboard.row("Найти события по времени")
             keyboard.row("Вернуться в меню")
-        send = bot.send_message(message.from_user.id, "Что хочешь сделать?", reply_markup=keyboard)
+        send = bot.send_message(message.from_user.id, "Что мне сделать дальше?", reply_markup=keyboard)
         bot.register_next_step_handler(send, event_btns)
 
     elif message.text == "Найти похожих пользователей":
@@ -66,7 +91,10 @@ def profile_events_match_btns(message):
             send = bot.send_message(message.chat.id, text="Лови чуваков ☝", reply_markup=keyboard)
             bot.register_next_step_handler(send, match_handler)
         else:
-            bot.send_message(message.chat.id, text="Сначала введи данные")
+            bot.send_message(message.chat.id, text="Сначала расскажи о себе в профиле)")
+            main_menu(message)
+    else:
+        main_menu(message)
 
 
 def make_users_match(username, chat_id, start=config.start, top_n=config.top_n):
@@ -91,47 +119,52 @@ def make_users_match(username, chat_id, start=config.start, top_n=config.top_n):
 
 def match_handler(message):
     if message.text == "Показать еще пользователей":
-        users[message.from_user.username]["match_users_row"] += 1
-        attempt = users[message.from_user.username]["match_users_row"]
+        users.get_user(message.from_user.id).match_users_row += 1
+        attempt = users.get_user(message.from_user.id).match_users_row
         make_users_match(message.from_user.username, message.chat.id, start=config.start + attempt * config.top_n)
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         keyboard.row("Показать еще пользователей")
         keyboard.row("Вернуться в меню")
         send = bot.send_message(message.chat.id, text="Лови чуваков ☝", reply_markup=keyboard)
         bot.register_next_step_handler(send, match_handler)
+
     elif message.text == "Показать еще события":
-        users[message.from_user.username]["match_events_row"] += 1
-        attempt = users[message.from_user.username]["match_events_row"]
+        users.get_user(message.from_user.id).match_events_row += 1
+        attempt = users.get_user(message.from_user.id).match_events_row
         make_event_match(message.from_user.username, message.chat.id,
-                         event_day=users[message.from_user.username]["event_day"],
-                         event_time=users[message.from_user.username]["event_time"],
+                         event_day=users.get_user(message.from_user.id).event_day,
+                         event_time=users.get_user(message.from_user.id).event_time,
                          start=config.start + attempt * config.top_n)
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         keyboard.row("Показать еще события")
         keyboard.row("Вернуться в меню")
         send = bot.send_message(message.chat.id, text="Лови чуваков ☝", reply_markup=keyboard)
         bot.register_next_step_handler(send, match_handler)
+
     elif message.text == "Вернуться в меню":
-        users[message.from_user.username]["match_users_row"] = 0
-        users[message.from_user.username]["match_events_row"] = 0
+        users.get_user(message.from_user.id).match_users_row = 0
+        users.get_user(message.from_user.id).match_events_row = 0
         main_menu(message)
 
 
 def event_btns(message):
-    if message.text == "Редактировать" or message.text == "Создать событие":
+    if message.text == "Редактировать мое событие" or message.text == "Создать событие":
         delete_event(message.from_user.username)
         insert_event(message.from_user.username)
         update_user_tb(message.from_user.username, "event_stage", 0)
         get_date(message.chat.id)
-    elif message.text == "Найти события":
+    elif message.text == "Найти события по времени":
         update_user_tb(message.from_user.username, "searching_stage", 1)
         get_date(message.chat.id)
     elif message.text == "Вернуться в меню":
         main_menu(message)
-    elif message.text == "Мое событие":
+    elif message.text == "Покажи мое событие":
         key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-        key.row("Мое событие", "Редактировать")
-        key.row("Найти события", "Вернуться в меню")
+        key.row("Покажи мое событие")
+        key.row("Редактировать мое событие")
+        key.row("Удали мое событие")
+        key.row("Найти события по времени")
+        key.row("Вернуться в меню")
 
         event_profile = get_event_profile_text(message.from_user.username)
         if event_profile:
@@ -140,6 +173,15 @@ def event_btns(message):
             reply_text = "Упс... что-то пошло не так"
 
         send = bot.send_message(message.from_user.id, text=reply_text, reply_markup=key, parse_mode="MarkdownV2")
+        bot.register_next_step_handler(send, event_btns)
+    elif message.text == "Удали мое событие":
+        key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+        key.row("Создать событие")
+        key.row("Найти события по времени")
+        key.row("Вернуться в меню")
+
+        delete_event(message.from_user.username)
+        send = bot.send_message(message.from_user.id, text="Сделано!", reply_markup=key)
         bot.register_next_step_handler(send, event_btns)
 
 
@@ -263,8 +305,11 @@ def self_describing(message):
 def event_describing(message):
     update_event_tb(message.from_user.username, "description", message.text)
     keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    keyboard.row("Мое событие", "Редактировать")
-    keyboard.row("Найти события", "Вернуться в меню")
+    keyboard.row("Покажи мое событие")
+    keyboard.row("Редактировать мое событие")
+    keyboard.row("Удали мое событие")
+    keyboard.row("Найти события по времени")
+    keyboard.row("Вернуться в меню")
     sent = bot.send_message(message.from_user.id, "Готово! Что дальше?", reply_markup=keyboard)
     bot.register_next_step_handler(sent, event_btns)
 
@@ -322,20 +367,26 @@ def get_event_profile_text(username):
     suggested_day = suggested_day.strftime("%d.%m.%y")
     suggested_time = get_event_tb_column_val(username, "time")
     description = get_event_tb_column_val(username, "description")
+    author_description = get_user_profile_text(username)
 
-    event_profile = f"***День:***\n`{suggested_day}`\n\n***Начало:***\n`{suggested_time}`\n\n***Описание:***\n`{description}`\n\n***Автор:***\n@{username}"
+    event_profile = f"***День:***\n`{suggested_day}`\n\n***Начало:***\n`{suggested_time}`\n\n***Описание:***\n`{description}`\n\n***Об авторе:***\n\n{author_description}"
 
     return event_profile
 
 
-# TODO: GET CHAT.ID FROM USERNAME!
-# TODO: HOW TO CALL WITH A DEFINITE FREQUENCY?
+def get_chat_id_by_username(username):
+    for user_id, user_class in users.users.items():
+        if user_class.name == username:
+            return user_id
+
+
 def delete_and_notify():
     users_to_notify = find_old_events()
-    for user in users_to_notify:
-        username = user[0]
-        delete_event(username)
-        bot.send_message(chat_id=username.chat.id, text=config.delete_notification.format(username))
+    for author in users_to_notify:
+        author_name = author[0]
+        chat_id = get_chat_id_by_username(author_name)
+        delete_event(author_name)
+        bot.send_message(chat_id=chat_id, text=config.delete_notification.format(author_name))
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -385,7 +436,8 @@ def update_user_data(call):
 
         elif answer == 'FINISH' and info_stage == 5:
             sent = bot.send_message(chat_id,
-                                    text='Круто!\nНаконец, кратко опиши себя:')
+                                    text=config.sample_user_description,
+                                    parse_mode="Markdown")
             update_user_tb(username, "info_stage", 6)
             bot.register_next_step_handler(sent, self_describing)
 
@@ -394,15 +446,19 @@ def update_user_data(call):
 
         elif answer in day_options and searching_stage == 1:
             answer = str(datetime.datetime.strptime(answer, "%d.%m.%y"))[:10].replace('-', '.')
-            users[username]["event_day"] = answer
+            users.get_user(call.message.chat.id).event_day = answer
             bot.send_message(chat_id, text=f'День: {answer}\nТеперь выбери время:')
             get_time_period(chat_id)
             update_user_tb(username, "searching_stage", 2)
 
         elif answer in config.time_periods and searching_stage == 2:
-            users[username]["event_time"] = answer
-            bot.send_message(chat_id, text=f'Принял! Думаю, эти варианты неплохи:')
-            make_event_match(username, chat_id, users[username]["event_day"], users[username]["event_time"])
+            users.get_user(call.message.chat.id).event_time = answer
+            bot.send_message(chat_id,
+                             text=f'Принял! Учитывая время и интересы пользователей, думаю, эти варианты неплохи:')
+
+            make_event_match(username, chat_id, users.get_user(call.message.chat.id).event_day,
+                             users.get_user(call.message.chat.id).event_time)
+
             keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             keyboard.row("Показать еще события", "Вернуться в меню")
             sent = bot.send_message(call.message.chat.id, "Готово! Что дальше?", reply_markup=keyboard)
@@ -417,7 +473,9 @@ def update_user_data(call):
 
         elif answer in config.time_periods and event_stage == 1:
             update_event_tb(username, "time", answer)
-            sent = bot.send_message(chat_id, text=f'Начало: "{answer}"\nКратко опиши событие:')
+            sent = bot.send_message(chat_id,
+                                    text=f'Начало: "{answer}"' + config.sample_event_description,
+                                    parse_mode="Markdown")
             update_user_tb(username, "event_stage", 2)
             bot.register_next_step_handler(sent, event_describing)
 

@@ -107,10 +107,3 @@ def find_old_events():
         return users_to_notify
     except Error as e:
         print(e)
-
-
-def delete_and_notify():
-    users_to_notify = find_old_events()
-    for user in users_to_notify:
-        username = user[0]
-        delete_event(username)
