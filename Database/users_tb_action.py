@@ -1,13 +1,13 @@
-from mysql.connector import connect, Error
+from mysql.connector import Error, connect
+from ConstantsClass import Constants
 
-connection = connect(
-    host="localhost",
-    user="root",
-    password="Password",
-    database="coffee_bot")
+database_params = Constants.database_params
+connection = connect(host=database_params["host"], user=database_params["user"],
+                     password=database_params["password"],
+                     database=database_params["database"])
 
 
-def insert_user(age=None, gender=None, username=None, self_description="Пусто", curr_info_stage=0, curr_event_stage=0,
+def insert_user(age=None, gender=None, username=None, self_description="", curr_info_stage=0, curr_event_stage=0,
                 curr_searching_stage=0, is_active=True):
     try:
         cursor = connection.cursor()
@@ -102,43 +102,12 @@ def get_interest(username, interest):
         print(e)
 
 
-def reset_interest(username, interest):
-    user_id = get_user_tb_column_val(username, "id")
-    try:
-        cursor = connection.cursor()
-        reset_interests_query = f"""
-                        UPDATE user_hobbies
-                        SET Table_games = 0,
-                            Education = 0,
-                            Art = 0,
-                            Science = 0,
-                            Pets = 0,
-                            Busyness = 0,
-                            Improving = 0,
-                            Sport = 0,
-                            Blogging = 0,
-                            Computer_games = 0
-                        WHERE user_id = '{user_id}'
-                        """ if interest == "hobbies" else f"""
-                        UPDATE user_topics
-                        SET Thoughts = 0,
-                            Education = 0,
-                            Art = 0,
-                            Experiences = 0,
-                            Busyness = 0,
-                            Work = 0,
-                            Sport = 0,
-                            Anxiety = 0,
-                            Travels = 0,
-                            Politics = 0,
-                            Humour = 0,
-                            Future = 0
-                        WHERE user_id = '{user_id}'
-                        """
-        cursor.execute(reset_interests_query)
-        connection.commit()
-    except Error as e:
-        print(e)
+def reset_info(username):
+    update_user_tb(username, "info_stage", 0)
+    for hobby in Constants.hobbies_to_eng.values():
+        update_user_hobbies_tb(username, hobby, 0)
+    for topic in Constants.topics_to_eng.values():
+        update_user_topics_tb(username, topic, 0)
 
 
 def update_user_tb(username, feature, new_value):

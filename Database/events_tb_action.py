@@ -1,13 +1,14 @@
-from mysql.connector import connect, Error
+import datetime
+from mysql.connector import Error, connect
+from ConstantsClass import Constants
 
-connection = connect(
-    host="localhost",
-    user="root",
-    password="Password",
-    database="coffee_bot")
+database_params = Constants.database_params
+connection = connect(host=database_params["host"], user=database_params["user"],
+                     password=database_params["password"],
+                     database=database_params["database"])
 
 
-def insert_event(creator_username, day=None, time=None, event_description="Пусто"):
+def insert_event(creator_username, day=None, time=None, event_description=""):
     try:
         cursor = connection.cursor()
         add_event = f"""
@@ -85,5 +86,23 @@ def get_event_by_creator(username):
         cursor.execute(sql)
         res = cursor.fetchall()
         return res[0] if res else False
+    except Error as e:
+        print(e)
+
+
+def find_old_events():
+    try:
+        cursor = connection.cursor()
+        now = datetime.datetime.now()
+        curr_date = str(datetime.date(year=now.year, month=now.month, day=now.day))
+        curr_time = str(datetime.time(hour=now.hour))
+
+        query = f"""SELECT creator FROM events
+                 WHERE (day < '{curr_date}') OR (day = '{curr_date}' AND LEFT(RIGHT(time, 5), 2) < '{curr_time}');
+                 """
+
+        cursor.execute(query)
+        users_to_notify = cursor.fetchall()
+        return users_to_notify
     except Error as e:
         print(e)
