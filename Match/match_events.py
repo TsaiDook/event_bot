@@ -1,9 +1,25 @@
-from Database.events_tb_action import get_all_events_by_day
-from Match.match_users import sum_user_similarity
-from ConstantsClass import Constants
+from Bot.Database.events_tb_action import get_all_events_by_day
+from match_users import sum_user_similarity
+from Bot.ConstantsClass import Constants
 
 
 def count_events_similarity(user1, time1, user2, time2):
+    """
+
+    Count similarity of 2 events
+    :param user1: username of the 1st user
+    :type: string
+    :param time1: period of time for a meeting 1st user suggests
+    :type: string
+    :param user2: username of the 2cd user
+    :type: string
+    :param time2: period of time for a meeting 2cs user suggests
+    :type: string
+
+    :return: a similarity of 2 events
+    :rtype: int
+
+    """
     users_similarity = sum_user_similarity(user1, user2)
     time_periods_to_num = Constants.time_periods_to_num
     if users_similarity > 0:
@@ -14,6 +30,19 @@ def count_events_similarity(user1, time1, user2, time2):
 
 
 def event_match(username, event_day, event_time):
+    """
+
+    Sort users by their similarity on an exact person
+    :param username: username of the user who is finding an event
+    :type: string
+    :param event_day: day user suggests
+    :type: timestamp
+    :param event_time: time period user suggests
+    :type: string
+
+    :rtype: list
+    :return: a vector of events descending by a similarity on the event user suggests
+    """
     potential_events = get_all_events_by_day(event_day, username)
 
     best_events = []

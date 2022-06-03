@@ -1,11 +1,10 @@
 import telebot
 from telebot import types
-import ConstantsClass
-from Database.users_tb_action import update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
+from Bot.Database.users_tb_action import update_user_tb, update_user_hobbies_tb, update_user_topics_tb, \
     get_user_tb_column_val
-from Match.match_users import interests_match, extract_features
-from Database.events_tb_action import get_all_events_by_day
-from Match.match_events import event_match
+from Bot.Match.match_users import interests_match, extract_features
+from Bot.Database.events_tb_action import get_all_events_by_day
+from Bot.Match.match_events import event_match
 import datetime
 
 bot = telebot.TeleBot(config.token)

@@ -1,15 +1,39 @@
 import datetime
+
 from mysql.connector import Error, connect
-from ConstantsClass import Constants
 
-database_params = Constants.database_params
-connection = connect(host=database_params["host"], user=database_params["user"],
-                     password=database_params["password"],
-                     database=database_params["database"])
+from Bot.ConstantsClass import Constants
 
 
-def insert_event(creator_username, day=None, time=None, event_description=""):
+def create_connection():
+    """
+
+    Create connection to database
+
+    """
+    database_params = Constants.database_params
+    connection = connect(host=database_params["host"], user=database_params["user"],
+                         password=database_params["password"],
+                         database=database_params["database"])
+    return connection
+
+
+def insert_event(creator_username, day=None, time=None, event_description="Пусто"):
+    """
+
+    Insert new event in a database
+    :param creator_username: telegram username of an author
+    :type: string
+    :param day: day, which user suggests
+    :type: timestamp
+    :param time: time period, which user suggests
+    :type: string
+    :param event_description: little description of an event
+    :type: string
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         add_event = f"""
                     INSERT INTO events (creator, day, time, description)
@@ -23,7 +47,19 @@ def insert_event(creator_username, day=None, time=None, event_description=""):
 
 
 def update_event_tb(creator_username, feature, new_value):
+    """
+
+    Update a column in events table
+    :param creator_username: telegram username of an author
+    :type: string
+    :param feature: column they want to change
+    :type: string
+    :param new_value: new value for that column
+    :type: string
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         sql = f"""
               UPDATE events
@@ -37,7 +73,15 @@ def update_event_tb(creator_username, feature, new_value):
 
 
 def delete_event(creator_username):
+    """
+
+    Delete an event from events table
+    :param creator_username: telegram username of an author
+    :type: string
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         sql = f""" 
                DELETE FROM events 
@@ -50,7 +94,20 @@ def delete_event(creator_username):
 
 
 def get_all_events_by_day(day, creator_username):
+    """
+
+    Return all events on an exact day from events table
+    :param day: a day we want to get event on
+    :type: string
+    :param creator_username: telegram username of an author
+    :type: string
+
+    :return: list of events on that day
+    :type: list
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         sql = f"""
               SELECT * FROM events 
@@ -65,7 +122,20 @@ def get_all_events_by_day(day, creator_username):
 
 
 def get_event_tb_column_val(username, column):
+    """
+
+    Return an exact column's value from user's created event
+    :param username: telegram username of an author
+    :type: string
+    :param column: a column, which value we went to get
+    :type: string
+
+    :return: a value of the mentioned column from events table
+    :rtype: string
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         sql = f"""
                SELECT {column}
@@ -80,7 +150,18 @@ def get_event_tb_column_val(username, column):
 
 
 def get_event_by_creator(username):
+    """
+
+    Return an information about event by author telegram username
+    :param username: telegram username of an author
+    :type: string
+
+    :return: information about event or False if such event does not exist now
+    :rtype: list or bool
+
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         sql = f"""SELECT * FROM events WHERE creator = '{username}'"""
         cursor.execute(sql)
@@ -91,7 +172,14 @@ def get_event_by_creator(username):
 
 
 def find_old_events():
+    """
+
+    Return all events, which beginning time is outdated now
+    :return: list of authors' usernames of outdated events
+    :rtype: list
+    """
     try:
+        connection = create_connection()
         cursor = connection.cursor()
         now = datetime.datetime.now()
         curr_date = str(datetime.date(year=now.year, month=now.month, day=now.day))

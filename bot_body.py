@@ -1,56 +1,70 @@
 import datetime
+import threading
+import time
+import traceback
 
 import telebot
 from telebot import types
 
 from ConstantsClass import Constants
-
-from Database.events_tb_action import insert_event, update_event_tb, get_all_events_by_day, delete_event, \
+from Bot.Database.UsersClass import Users, User
+from Bot.Database.events_tb_action import insert_event, update_event_tb, get_all_events_by_day, delete_event, \
     get_event_by_creator, get_event_tb_column_val, find_old_events
-from Database.users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, \
+from Bot.Database.users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, \
     update_user_topics_tb, get_user_tb_column_val, get_interest_val, get_interest, reset_info
-
-from Match.match_events import event_match
-from Match.match_users import interests_match
-
-from Database.UsersClass import Users, User
-
+from Bot.Match.match_events import event_match
+from Bot.Match.match_users import interests_match
 
 bot = telebot.TeleBot(Constants.token)
-
 
 users = Users()
 
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
+    """
+    Handle command "/start":
+    sends start-message, adds user to DB and shows main_menu buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     chat_id, username = message.chat.id, message.from_user.username
     bot.send_message(chat_id,
                      text=f"Привет, {username}! {Constants.intro_text}")
     if not check_existence(username):
         insert_user(username=username)
-    users.add_user(User(message.from_user.id, message.from_user.username))
+        users.add_user(User(message.from_user.id, message.from_user.username))
     main_menu(message)
 
 
 def main_menu(message):
+    """
+    Shows menu buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
     key.row("Перейти в профиль")
     key.row("Посмотреть события")
     key.row("Найти похожих пользователей")
     send = bot.send_message(message.from_user.id, "Ты в главном меню", reply_markup=key)
-    bot.register_next_step_handler(send, profile_events_match_btns)
+    bot.register_next_step_handler(send, profile_events_match_buttons)
     update_user_tb(message.from_user.username, "searching_stage", 0)
 
 
-def profile_events_match_btns(message):
+def profile_events_match_buttons(message):
+    """
+    Handle menu buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     if message.text == "Перейти в профиль":
         user_profile_text = get_user_profile_text(message.from_user.username)
         key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=1)
         key.row("Редактировать профиль")
         key.row("Вернуться в меню")
         send = bot.send_message(message.from_user.id, text=user_profile_text, reply_markup=key)
-        bot.register_next_step_handler(send, edit_profile_btns)
+        bot.register_next_step_handler(send, edit_profile_buttons)
     elif message.text == "Посмотреть события":
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if get_event_by_creator(message.from_user.username):
@@ -64,7 +78,7 @@ def profile_events_match_btns(message):
             keyboard.row("Найти события по времени")
             keyboard.row("Вернуться в меню")
         send = bot.send_message(message.from_user.id, "Что мне сделать дальше?", reply_markup=keyboard)
-        bot.register_next_step_handler(send, event_btns)
+        bot.register_next_step_handler(send, event_buttons)
 
     elif message.text == "Найти похожих пользователей":
         if get_user_tb_column_val(message.from_user.username, "info_stage") == 6:
@@ -82,6 +96,19 @@ def profile_events_match_btns(message):
 
 
 def make_users_match(username, chat_id, start=Constants.start, top_n=Constants.top_n):
+    """
+    Sends user profiles of the most similar other users if possible
+    sends start-message, adds user to DB and shows main_menu buttons
+    :param username: user`s telegram name
+    :type: string
+    :param chat_id: user`s telegram chat id
+    :type: int
+    :param start:
+        default=Constants.start
+    :type: int
+    :param top_n: the number of user profiles to show
+    :type: id
+    """
     challengers = interests_match(username)
     try:
         challengers = challengers[start:start + top_n]
@@ -102,6 +129,11 @@ def make_users_match(username, chat_id, start=Constants.start, top_n=Constants.t
 
 
 def match_handler(message):
+    """
+    Handle "Show more ..." buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     if message.text == "Показать еще пользователей":
         users.get_user(message.from_user.id).match_users_row += 1
         attempt = users.get_user(message.from_user.id).match_users_row
@@ -122,7 +154,7 @@ def match_handler(message):
         keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         keyboard.row("Показать еще события")
         keyboard.row("Вернуться в меню")
-        send = bot.send_message(message.chat.id, text="Лови чуваков ☝", reply_markup=keyboard)
+        send = bot.send_message(message.chat.id, text="Лови события ☝", reply_markup=keyboard)
         bot.register_next_step_handler(send, match_handler)
 
     elif message.text == "Вернуться в меню":
@@ -131,7 +163,12 @@ def match_handler(message):
         main_menu(message)
 
 
-def event_btns(message):
+def event_buttons(message):
+    """
+    Handle event buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     if message.text == "Редактировать мое событие" or message.text == "Создать событие":
         delete_event(message.from_user.username)
         insert_event(message.from_user.username)
@@ -154,9 +191,9 @@ def event_btns(message):
             reply_text = event_profile
         else:
             reply_text = "Упс... что-то пошло не так"
-
         send = bot.send_message(message.from_user.id, text=reply_text, reply_markup=key)
-        bot.register_next_step_handler(send, event_btns)
+        bot.register_next_step_handler(send, event_buttons)
+
     elif message.text == "Удали мое событие":
         key = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
         key.row("Создать событие")
@@ -165,10 +202,15 @@ def event_btns(message):
 
         delete_event(message.from_user.username)
         send = bot.send_message(message.from_user.id, text="Сделано!", reply_markup=key)
-        bot.register_next_step_handler(send, event_btns)
+        bot.register_next_step_handler(send, event_buttons)
 
 
 def get_date(chat_id):
+    """
+    Show to user inline buttons of getting date of event
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     now = datetime.datetime.now()
     options = [(now + datetime.timedelta(days=i + 1)).strftime("%d.%m.%y") for i in range(8)]
@@ -183,6 +225,11 @@ def get_date(chat_id):
 
 
 def get_time_period(chat_id):
+    """
+    Show to user inline buttons of getting time-period of event
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     buttons = [types.InlineKeyboardButton(text=time_period,
                                           callback_data=time_period)
@@ -194,7 +241,12 @@ def get_time_period(chat_id):
                      reply_markup=keyboard)
 
 
-def edit_profile_btns(message):
+def edit_profile_buttons(message):
+    """
+    Handle profile edit button
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     if message.text == "Редактировать профиль":
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if get_user_tb_column_val(message.from_user.username, "is_active"):
@@ -212,6 +264,11 @@ def edit_profile_btns(message):
 
 
 def edit_profile(message):
+    """
+    Handle profile editing buttons
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     if message.text == "Изменить данные":
         reset_info(message.from_user.username)
@@ -235,6 +292,11 @@ def edit_profile(message):
 
 
 def get_gender(chat_id):
+    """
+    Show to user inline buttons of getting his gender
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     buttons = [types.InlineKeyboardButton(text=gender,
                                           callback_data=gender)
@@ -246,6 +308,11 @@ def get_gender(chat_id):
 
 
 def get_age(chat_id):
+    """
+    Show to user inline buttons of getting his age
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     buttons = [types.InlineKeyboardButton(text=age,
                                           callback_data=age)
@@ -257,6 +324,11 @@ def get_age(chat_id):
 
 
 def get_hobbies(chat_id):
+    """
+    Show to user inline buttons of getting his hobbies
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     buttons = [types.InlineKeyboardButton(text=hobby,
                                           callback_data=hobby)
@@ -264,11 +336,16 @@ def get_hobbies(chat_id):
 
     keyboard.add(*buttons)
     bot.send_message(chat_id,
-                     'Замечательно! Расскажи о своих хобби? ***Выбери от 1 до 8 вариантов:***',
+                     'Замечательно! Расскажи о своих хобби? Выбери от 1 до 8 вариантов:',
                      reply_markup=keyboard)
 
 
 def get_conv_topics(chat_id):
+    """
+    Show to user inline buttons of getting his favourite conversation topics
+    :param chat_id: id of the chat where the date is got (similar to user`s telegram id in our bot due to it`s specific)
+    :type: int
+    """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     buttons = [types.InlineKeyboardButton(text=topic,
                                           callback_data=topic)
@@ -276,16 +353,26 @@ def get_conv_topics(chat_id):
 
     keyboard.add(*buttons)
     bot.send_message(chat_id,
-                     'С хобби закончили!\nА о чем ты предпочитаешь поговорить? ***Выбери от 1 до 8 вариантов:***',
+                     'С хобби закончили!\nА о чем ты предпочитаешь поговорить? Выбери от 1 до 8 вариантов:',
                      reply_markup=keyboard)
 
 
 def self_describing(message):
+    """
+    Ask user to write his self description
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     update_user_tb(message.from_user.username, "self_description", message.text)
     main_menu(message)
 
 
 def event_describing(message):
+    """
+    Ask user to write event description
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     update_event_tb(message.from_user.username, "description", message.text)
     keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.row("Покажи мое событие")
@@ -294,10 +381,30 @@ def event_describing(message):
     keyboard.row("Найти события по времени")
     keyboard.row("Вернуться в меню")
     sent = bot.send_message(message.from_user.id, "Готово! Что дальше?", reply_markup=keyboard)
-    bot.register_next_step_handler(sent, event_btns)
+    bot.register_next_step_handler(sent, event_buttons)
 
 
 def make_event_match(username, chat_id, event_day=None, event_time=None, start=Constants.start):
+    """
+    Sends events` describes with their creators` profiles relying on the biggest similarity of user and creators in the definite day
+
+    :param username: user`s telegram name
+    :type: string
+    :param chat_id: user`s telegram chat id
+    :type: int
+    :param start:
+        default=Constants.start
+    :type: int
+    :param event_day: the day when user wants to find events
+    :type: string
+    :param event_time: the most pleasant time when user wants to find events
+    :type:
+    :param start:
+        default=Constants.start
+    :type: int
+    """
+    #TODO
+    # time type
     possible_options = get_all_events_by_day(event_day, username)
     if possible_options:
         best_options = event_match(username, event_day, event_time)
@@ -317,12 +424,17 @@ def make_event_match(username, chat_id, event_day=None, event_time=None, start=C
                     bot.send_message(chat_id,
                                      text=event_profile)
     else:
-        bot.send_message(chat_id, text="В этот день пока что никто не тусит, но ты можешь создать свое событие!")
+        bot.send_message(chat_id, text="В этот день нет событий, но ты можешь создать свое событие!")
 
     update_user_tb(username, "searching_stage", 0)
 
 
 def get_user_profile_text(username):
+    """
+    Returns text of user profile to show
+    :param message: message from user
+    :type: telebot.types.Message
+    """
     user_hobbies = get_interest(username, "hobbies")
     user_hobbies = list(
         map(lambda x: list(Constants.hobbies_to_eng.keys())[list(Constants.hobbies_to_eng.values()).index(x)],
@@ -334,34 +446,64 @@ def get_user_profile_text(username):
     user_hobbies = ", ".join(user_hobbies) if user_hobbies else "Пусто"
     user_topics = ", ".join(user_topics) if user_topics else "Пусто"
     self_description = get_user_tb_column_val(username, "self_description")
-    return f"""***Хобби:***\n`{user_hobbies}`\n\n***Любимые темы для разговора:***\n`{user_topics}`\n\n***О себе:***\n`"{self_description}"`\n\n***Тэг в Телеграмме:***\n@{username}"""
+    return f"""Хобби:\n{user_hobbies}\n\nЛюбимые темы для разговора:\n{user_topics}\n\nО себе:\n"{self_description}"\n\nТэг в Телеграмме:\n@{username}"""
 
 
 def get_event_profile_text(username):
+    """
+    Returns text of user`s event to show
+    :param username: user`s telegram username
+    :type: string
+    """
     suggested_day = get_event_tb_column_val(username, "day")
     suggested_day = suggested_day.strftime("%d.%m.%y")
     suggested_time = get_event_tb_column_val(username, "time")
     description = get_event_tb_column_val(username, "description")
     author_description = get_user_profile_text(username)
 
-    event_profile = f"***День:***\n`{suggested_day}`\n\n***Начало:***\n`{suggested_time}`\n\n***Описание:***\n`{description}`\n\n***Об авторе:***\n\n{author_description}"
+    event_profile = f"День:\n{suggested_day}\n\nНачало:\n{suggested_time}\n\nОписание:\n{description}\n\nОб авторе:\n\n{author_description}"
 
     return event_profile
 
 
 def get_chat_id_by_username(username):
+    """
+    Returns telegram id of user by his telegram username
+    :param username: user`s telegram username
+    :type: string
+    """
     for user_id, user_class in users.users.items():
         if user_class.name == username:
             return user_id
 
 
 def delete_and_notify():
+    """
+    Deletes all old events and sends notifies to their creators
+    """
     users_to_notify = find_old_events()
     for author in users_to_notify:
         author_name = author[0]
         chat_id = get_chat_id_by_username(author_name)
         delete_event(author_name)
         bot.send_message(chat_id=chat_id, text=Constants.delete_notification.format(author_name))
+
+
+def every(delay, task):
+    """
+    Delay function for an hour
+    """
+    next_time = time.time() + delay
+    while True:
+        time.sleep(max(0, next_time - time.time()))
+        try:
+            task()
+        except Exception:
+            traceback.print_exc()
+        next_time += (time.time() - next_time) // delay * delay + delay
+
+
+threading.Thread(target=lambda: every(3600, delete_and_notify)).start()
 
 
 @bot.callback_query_handler(func=lambda call: True)
