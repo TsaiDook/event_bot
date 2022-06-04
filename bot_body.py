@@ -7,13 +7,13 @@ import telebot
 from telebot import types
 
 from ConstantsClass import Constants
-from Bot.Database.UsersClass import Users, User
-from Bot.Database.events_tb_action import insert_event, update_event_tb, get_all_events_by_day, delete_event, \
+from Database.UsersClass import Users, User
+from Database.events_tb_action import insert_event, update_event_tb, get_all_events_by_day, delete_event, \
     get_event_by_creator, get_event_tb_column_val, find_old_events
-from Bot.Database.users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, \
+from Database.users_tb_action import insert_user, check_existence, update_user_tb, update_user_hobbies_tb, \
     update_user_topics_tb, get_user_tb_column_val, get_interest_val, get_interest, reset_info
-from Bot.Match.match_events import event_match
-from Bot.Match.match_users import interests_match
+from Match.match_events import event_match
+from Match.match_users import interests_match
 
 bot = telebot.TeleBot(Constants.token)
 
@@ -213,7 +213,7 @@ def get_date(chat_id):
     """
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     now = datetime.datetime.now()
-    options = [(now + datetime.timedelta(days=i + 1)).strftime("%d.%m.%y") for i in range(8)]
+    options = [(now + datetime.timedelta(days=i + 1)).strftime("%d.%m.%y") for i in range(7)]
     buttons = [types.InlineKeyboardButton(text=option,
                                           callback_data=option)
                for option in options]
@@ -503,7 +503,7 @@ def every(delay, task):
         next_time += (time.time() - next_time) // delay * delay + delay
 
 
-threading.Thread(target=lambda: every(3600, delete_and_notify)).start()
+# threading.Thread(target=lambda: every(3600, delete_and_notify)).start()
 
 
 @bot.callback_query_handler(func=lambda call: True)

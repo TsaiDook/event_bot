@@ -1,5 +1,5 @@
-from Bot.ConstantsClass import Constants
-from Bot.Database.users_tb_action import get_interest, get_user_tb_column_val, get_active_users
+from ConstantsClass import Constants
+from Database.users_tb_action import get_interest, get_user_tb_column_val, get_active_users
 
 
 def count_feature_similarity(usr1, usr2, feature):

@@ -1,6 +1,6 @@
-from Bot.Database.events_tb_action import get_all_events_by_day
-from match_users import sum_user_similarity
-from Bot.ConstantsClass import Constants
+from Database.events_tb_action import get_all_events_by_day
+from Match.match_users import sum_user_similarity
+from ConstantsClass import Constants
 
 
 def count_events_similarity(user1, time1, user2, time2):

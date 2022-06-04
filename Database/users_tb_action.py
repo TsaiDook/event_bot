@@ -1,6 +1,6 @@
 from mysql.connector import Error, connect
 
-from Bot.ConstantsClass import Constants
+from ConstantsClass import Constants
 
 
 def create_connection():
